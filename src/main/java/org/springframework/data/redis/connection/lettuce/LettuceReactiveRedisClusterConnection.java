@@ -16,8 +16,8 @@
 package org.springframework.data.redis.connection.lettuce;
 
 import io.lettuce.core.api.StatefulConnection;
-import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.reactive.BaseRedisReactiveCommands;
+import io.lettuce.core.api.reactive.ReactiveStatefulRedisConnection;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.SlotHash;
@@ -354,13 +354,13 @@ class LettuceReactiveRedisClusterConnection extends LettuceReactiveRedisConnecti
 			return getConnection().cast(StatefulRedisClusterConnection.class).flatMap(it -> {
 				StatefulRedisClusterConnection<ByteBuffer, ByteBuffer> connection = it;
 				return Mono.fromCompletionStage(connection.getConnectionAsync(node.getId()))
-						.map(StatefulRedisConnection::reactive);
+						.map(conn -> ((ReactiveStatefulRedisConnection<ByteBuffer, ByteBuffer>) conn).reactive());
 			});
 		}
 
 		return getConnection()
 				.flatMap(it -> Mono.fromCompletionStage(it.getConnectionAsync(node.getRequiredHost(), node.getRequiredPort()))
-						.map(StatefulRedisConnection::reactive));
+						.map(conn -> ((ReactiveStatefulRedisConnection<ByteBuffer, ByteBuffer>) conn).reactive()));
 	}
 
 	/**

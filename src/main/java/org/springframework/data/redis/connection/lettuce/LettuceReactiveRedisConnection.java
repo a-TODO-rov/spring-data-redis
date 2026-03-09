@@ -18,8 +18,8 @@ package org.springframework.data.redis.connection.lettuce;
 import static org.springframework.data.redis.connection.lettuce.LettuceReactiveRedisConnection.AsyncConnect.State.*;
 
 import io.lettuce.core.api.StatefulConnection;
-import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.reactive.BaseRedisReactiveCommands;
+import io.lettuce.core.api.reactive.ReactiveStatefulRedisConnection;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.reactive.RedisClusterReactiveCommands;
 import io.lettuce.core.codec.RedisCodec;
@@ -226,8 +226,8 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 	private static RedisClusterReactiveCommands<ByteBuffer, ByteBuffer> getRedisClusterReactiveCommands(
 			StatefulConnection<ByteBuffer, ByteBuffer> connection) {
 
-		if (connection instanceof StatefulRedisConnection) {
-			return ((StatefulRedisConnection<ByteBuffer, ByteBuffer>) connection).reactive();
+		if (connection instanceof ReactiveStatefulRedisConnection) {
+			return ((ReactiveStatefulRedisConnection<ByteBuffer, ByteBuffer>) connection).reactive();
 		} else if (connection instanceof StatefulRedisClusterConnection) {
 			return ((StatefulRedisClusterConnection<ByteBuffer, ByteBuffer>) connection).reactive();
 		}
