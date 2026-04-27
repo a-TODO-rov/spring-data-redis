@@ -450,7 +450,8 @@ public abstract class LettuceConverters extends Converters {
 
 			RedisNode sentinelNode = new RedisNode(sentinelNodeRedisUri.getHost(), sentinelNodeRedisUri.getPort());
 
-			RedisCredentials sentinelCredentials = sentinelNodeRedisUri.getCredentialsProvider().resolveCredentials().block();
+			RedisCredentials sentinelCredentials = sentinelNodeRedisUri.getCredentialsProvider().resolveCredentialsAsync()
+					.toCompletableFuture().join();
 			if (sentinelCredentials != null && sentinelCredentials.getPassword() != null) {
 				sentinelConfiguration.setSentinelPassword(sentinelCredentials.getPassword());
 			}
@@ -465,7 +466,8 @@ public abstract class LettuceConverters extends Converters {
 
 	private static void applyAuthentication(RedisURI redisURI, RedisConfiguration.WithAuthentication redisConfiguration) {
 
-		RedisCredentials credentials = redisURI.getCredentialsProvider().resolveCredentials().block();
+		RedisCredentials credentials = redisURI.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture()
+				.join();
 		if(credentials == null) {
 			return;
 		}

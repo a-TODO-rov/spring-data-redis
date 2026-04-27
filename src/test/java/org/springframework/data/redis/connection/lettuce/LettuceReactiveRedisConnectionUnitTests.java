@@ -19,9 +19,9 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import io.lettuce.core.RedisConnectionException;
+import io.lettuce.core.StatefulRedisConnectionImpl;
 import io.lettuce.core.XAddArgs;
 import io.lettuce.core.api.StatefulConnection;
-import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -55,7 +55,7 @@ import org.springframework.data.redis.connection.stream.MapRecord;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class LettuceReactiveRedisConnectionUnitTests {
 
-	@Mock(answer = Answers.RETURNS_MOCKS) StatefulRedisConnection<ByteBuffer, ByteBuffer> sharedConnection;
+	@Mock(answer = Answers.RETURNS_MOCKS) StatefulRedisConnectionImpl<ByteBuffer, ByteBuffer> sharedConnection;
 
 	@Mock RedisReactiveCommands<ByteBuffer, ByteBuffer> reactiveCommands;
 	@Mock LettuceConnectionProvider connectionProvider;

@@ -21,7 +21,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.data.redis.util.ByteUtils.*;
 
 import io.lettuce.core.RedisConnectionException;
-import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
+import io.lettuce.core.pubsub.StatefulRedisPubSubConnectionImpl;
 import io.lettuce.core.pubsub.api.reactive.RedisPubSubReactiveCommands;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -53,7 +53,7 @@ class LettuceReactiveSubscriptionUnitTests {
 
 	private LettuceReactiveSubscription subscription;
 
-	@Mock StatefulRedisPubSubConnection<ByteBuffer, ByteBuffer> connectionMock;
+	@Mock StatefulRedisPubSubConnectionImpl<ByteBuffer, ByteBuffer> connectionMock;
 	@Mock RedisPubSubReactiveCommands<ByteBuffer, ByteBuffer> commandsMock;
 
 	@Mock LettuceReactivePubSubCommands pubSubMock;

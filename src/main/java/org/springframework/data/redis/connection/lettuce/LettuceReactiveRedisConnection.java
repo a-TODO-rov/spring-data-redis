@@ -20,7 +20,9 @@ import static org.springframework.data.redis.connection.lettuce.LettuceReactiveR
 import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.reactive.BaseRedisReactiveCommands;
+import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
+import io.lettuce.core.cluster.api.reactive.RedisAdvancedClusterReactiveCommands;
 import io.lettuce.core.cluster.api.reactive.RedisClusterReactiveCommands;
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
@@ -28,7 +30,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import org.jspecify.annotations.NullUnmarked;
@@ -227,9 +229,10 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 			StatefulConnection<ByteBuffer, ByteBuffer> connection) {
 
 		if (connection instanceof StatefulRedisConnection) {
-			return ((StatefulRedisConnection<ByteBuffer, ByteBuffer>) connection).reactive();
+			return RedisReactiveCommands.from((StatefulRedisConnection<ByteBuffer, ByteBuffer>) connection);
 		} else if (connection instanceof StatefulRedisClusterConnection) {
-			return ((StatefulRedisClusterConnection<ByteBuffer, ByteBuffer>) connection).reactive();
+			return RedisAdvancedClusterReactiveCommands
+					.from((StatefulRedisClusterConnection<ByteBuffer, ByteBuffer>) connection);
 		}
 
 		throw new IllegalStateException("o.O unknown connection type " + connection);
@@ -301,13 +304,11 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 	 */
 	static class AsyncConnect<T extends io.lettuce.core.api.StatefulConnection<?, ?>> {
 
-		static AtomicReferenceFieldUpdater<AsyncConnect, State> STATE = AtomicReferenceFieldUpdater
-				.newUpdater(AsyncConnect.class, State.class, "state");
+		private final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
 
 		private final Mono<T> connectionPublisher;
 		private final LettuceConnectionProvider connectionProvider;
 
-		private volatile State state = State.INITIAL;
 		private volatile @Nullable StatefulConnection<ByteBuffer, ByteBuffer> connection;
 
 		@SuppressWarnings("unchecked")
@@ -323,7 +324,7 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 
 			this.connectionPublisher = defer.doOnNext(it -> {
 
-				if (isClosing(STATE.get(this))) {
+				if (isClosing(state.get())) {
 					it.closeAsync();
 				} else {
 					connection = it;
@@ -332,7 +333,7 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 					.cache() //
 					.handle((connection, sink) -> {
 
-						if (isClosing(STATE.get(this))) {
+						if (isClosing(state.get())) {
 							sink.error(new IllegalStateException("Unable to connect; Connection is closed"));
 						} else {
 							sink.next((T) connection);
@@ -348,12 +349,12 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 		 */
 		Mono<T> getConnection() {
 
-			State state = STATE.get(this);
+			State state = this.state.get();
 			if (isClosing(state)) {
 				return Mono.error(new IllegalStateException("Unable to connect; Connection is closed"));
 			}
 
-			STATE.compareAndSet(this, State.INITIAL, State.CONNECTION_REQUESTED);
+			this.state.compareAndSet(State.INITIAL, State.CONNECTION_REQUESTED);
 
 			return connectionPublisher;
 		}
@@ -365,13 +366,13 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 
 			return Mono.defer(() -> {
 
-				if (STATE.compareAndSet(this, State.INITIAL, CLOSING)
-						|| STATE.compareAndSet(this, State.CONNECTION_REQUESTED, CLOSING)) {
+				if (state.compareAndSet(State.INITIAL, CLOSING)
+						|| state.compareAndSet(State.CONNECTION_REQUESTED, CLOSING)) {
 
 					StatefulConnection<ByteBuffer, ByteBuffer> connection = this.connection;
 					this.connection = null;
 
-					STATE.set(this, State.CLOSED);
+					state.set(State.CLOSED);
 					if (connection != null) {
 						return Mono.fromCompletionStage(connectionProvider.releaseAsync(connection));
 					}

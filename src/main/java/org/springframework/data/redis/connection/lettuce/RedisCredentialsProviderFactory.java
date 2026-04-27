@@ -17,7 +17,8 @@ package org.springframework.data.redis.connection.lettuce;
 
 import io.lettuce.core.RedisCredentials;
 import io.lettuce.core.RedisCredentialsProvider;
-import reactor.core.publisher.Mono;
+
+import java.util.concurrent.CompletableFuture;
 
 import org.jspecify.annotations.Nullable;
 
@@ -56,7 +57,7 @@ public interface RedisCredentialsProviderFactory {
 			});
 		}
 
-		return () -> Mono.just(AbsentRedisCredentials.ANONYMOUS);
+		return () -> CompletableFuture.completedFuture(AbsentRedisCredentials.ANONYMOUS);
 	}
 
 	/**
@@ -74,7 +75,7 @@ public interface RedisCredentialsProviderFactory {
 					redisConfiguration.getSentinelPassword().get()));
 		}
 
-		return () -> Mono.just(AbsentRedisCredentials.ANONYMOUS);
+		return () -> CompletableFuture.completedFuture(AbsentRedisCredentials.ANONYMOUS);
 	}
 
 	/**

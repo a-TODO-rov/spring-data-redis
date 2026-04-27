@@ -21,7 +21,7 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
 import static org.springframework.data.redis.connection.ClusterTestVariables.*;
 
-import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.StatefulRedisConnectionImpl;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
@@ -55,7 +55,7 @@ public class LettuceReactiveRedisClusterConnectionUnitTests {
 	static final RedisClusterNode NODE1 = new RedisClusterNode(CLUSTER_HOST, MASTER_NODE_1_PORT);
 
 	@Mock StatefulRedisClusterConnection<ByteBuffer, ByteBuffer> sharedConnection;
-	@Mock StatefulRedisConnection<ByteBuffer, ByteBuffer> nodeConnection;
+	@Mock StatefulRedisConnectionImpl<ByteBuffer, ByteBuffer> nodeConnection;
 
 	@Mock RedisClusterClient clusterClient;
 	@Mock RedisAdvancedClusterReactiveCommands<ByteBuffer, ByteBuffer> reactiveCommands;
