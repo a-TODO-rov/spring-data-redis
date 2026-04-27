@@ -139,6 +139,74 @@ If Lettuce Kotlin build fails with `IllegalArgumentException: 25.0.1`, clear `ta
   - `mvn test-compile` → BUILD SUCCESS (15s).
   - `mvn test -Dtest=LettuceConnectionFactoryUnitTests,LettuceConvertersUnitTests` → **128 tests, 0 failures, 0 errors, 1 skipped**. Both unit test classes pass cleanly.
 
+## Lettuce commits absorbed (2026-04-27)
+Three upstream Lettuce commits on `reactor-optional-minimal` branch were integrated into SDR:
+
+### 534d67071 — Implement reactive facade
+- `StatefulRedisConnection.reactive()` REMOVED from the interface. Method kept only on `StatefulRedisConnectionImpl`.
+- New static factory: `RedisReactiveCommands.from(StatefulRedisConnection)` — checks `instanceof StatefulRedisConnectionImpl`.
+- All Lettuce internal call sites migrated from `.reactive()` to `RedisReactiveCommands.from(...)`.
+- SDR impact (3 main-src, 2 test-src sites):
+  - `LettuceReactiveRedisConnection.java:230` — `((StatefulRedisConnection)conn).reactive()` → `RedisReactiveCommands.from(...)`. Added import of `RedisReactiveCommands`.
+  - `LettuceReactiveRedisClusterConnection.java:357,363` — `StatefulRedisConnection::reactive` method refs → `RedisReactiveCommands::from`.
+  - `LettuceReactiveRedisConnectionUnitTests.java:58` — mock type changed from `StatefulRedisConnection` to `StatefulRedisConnectionImpl` (so `instanceof` check in `from()` passes).
+  - `LettuceReactiveRedisClusterConnectionUnitTests.java:58` — same mock type change.
+  - PubSub mocks unaffected (`StatefulRedisPubSubConnection.reactive()` still on interface).
+  - `StatefulRedisClusterConnection.reactive()` still on interface — no SDR change needed for cluster direct calls.
+
+### e1580925709 — Trace context propagation without Reactor dependency
+- New `TraceContextProvider` interface, changes to `BraveTracing` and `MicrometerTracing`.
+- SDR impact: **none** (SDR doesn't use `TraceContextProvider` directly).
+
+### 1c4202fd514 — Dynamic commands with optional reactive dependency
+- `RedisCommandFactory` and `DeclaredCommandMethod` refactored to lazily check Reactor availability.
+- SDR impact: **none** (SDR doesn't use `RedisCommandFactory`).
+
+### Verification (2026-04-27)
+- Lettuce reinstalled from `reactor-optional-minimal` HEAD (1c4202f).
+- SDR `mvn clean compile` → BUILD SUCCESS.
+- SDR `mvn test-compile` → BUILD SUCCESS.
+- Unit tests: 161 run, 0 failures (LettuceReactiveRedisConnectionUnitTests, LettuceReactiveRedisClusterConnectionUnitTests, LettuceReactiveSubscriptionUnitTests, LettuceReactivePubSubCommandsUnitTests, LettuceConnectionFactoryUnitTests, LettuceConvertersUnitTests).
+- Reactive integration tests: 200 run, 0 failures (LettuceReactiveStringCommandsIntegrationTests, LettuceReactiveServerCommandsIntegrationTests, LettuceReactiveKeyCommandsIntegrationTests, LettuceConnectionFactoryIntegrationTests).
+- SDR installed, native-test-app rebuilt (1m 3s), **19/19 native scenarios PASSED**.
+
+## Reactive facade pattern applied to ALL connection interfaces (2026-04-27)
+
+### Lettuce changes (reactor-optional-minimal branch)
+Removed `reactive()` from 4 interfaces total (standalone done in 534d670, rest done today):
+
+| Interface | `reactive()` removed | `from()` factory added to |
+|---|---|---|
+| `StatefulRedisConnection` | 534d670 | `RedisReactiveCommands.from()` |
+| `StatefulRedisPubSubConnection` | today | `RedisPubSubReactiveCommands.from()` |
+| `StatefulRedisClusterConnection` | today | `RedisAdvancedClusterReactiveCommands.from()` |
+| `StatefulRedisClusterPubSubConnection` | today | `RedisClusterPubSubReactiveCommands.from()` |
+| `StatefulRedisSentinelConnection` | today | `RedisSentinelReactiveCommands.from()` |
+
+Additional Lettuce fixes:
+- `@Override` removed from `StatefulRedisClusterConnectionImpl.reactive()` and `StatefulRedisSentinelConnectionImpl.reactive()` (no longer overriding interface method; they extend `RedisChannelHandler`, not an impl class with `reactive()`).
+- `RedisCommandFactory`: `((StatefulRedisClusterConnection) connection).reactive()` → `RedisAdvancedClusterReactiveCommands.from(...)`.
+- `RedisClusterPubSubReactiveCommandsImpl`: `StatefulRedisPubSubConnection::reactive` → `RedisPubSubReactiveCommands::from`.
+- Kotlin extensions: `StatefulRedisClusterConnectionExtensions.kt` and `StatefulRedisSentinelConnectionExtensions.kt` updated to use `from()` factories.
+- `RedisClusterPubSubReactiveCommands.from()` uses `StatefulRedisPubSubConnectionImpl` (public parent) with cast to `RedisClusterPubSubReactiveCommands` since `StatefulRedisClusterPubSubConnectionImpl` is package-private.
+
+### SDR changes
+| File | Change |
+|---|---|
+| `LettuceReactiveRedisConnection.java` | Cluster branch: `.reactive()` → `RedisAdvancedClusterReactiveCommands.from(...)` |
+| `LettuceReactiveRedisClusterConnection.java` | `StatefulRedisClusterConnection::reactive` → `RedisAdvancedClusterReactiveCommands::from` |
+| `LettuceReactivePubSubCommands.java` | `pubSubConnection.reactive()` → `RedisPubSubReactiveCommands.from(pubSubConnection)` |
+| `LettuceReactiveSubscription.java` | `connection.reactive()` → `RedisPubSubReactiveCommands.from(connection)` |
+| `LettuceReactivePubSubCommandsUnitTests.java` | Mock type: `StatefulRedisPubSubConnection` → `StatefulRedisPubSubConnectionImpl` |
+| `LettuceReactiveSubscriptionUnitTests.java` | Mock type: `StatefulRedisPubSubConnection` → `StatefulRedisPubSubConnectionImpl` |
+
+### Verification
+- Lettuce: `mvn clean compile` BUILD SUCCESS
+- SDR: `mvn clean compile` BUILD SUCCESS, `mvn test-compile` BUILD SUCCESS
+- Unit tests: 161 run, 0 failures
+- Integration tests: 200 run, 0 failures
+- Native image: rebuilt (1m 10s), **19/19 scenarios PASSED**
+
 ## Environment gotchas
 - System default `java` is Zulu 1.8 on this host. Maven builds fail with `Unrecognized option: --add-exports`. Always `export JAVA_HOME=...azul-17.0.17...` before running SDR/Lettuce builds.
 - GraalVM native build needs `JAVA_HOME=/Library/Java/JavaVirtualMachines/graalvm-25.jdk/Contents/Home`.

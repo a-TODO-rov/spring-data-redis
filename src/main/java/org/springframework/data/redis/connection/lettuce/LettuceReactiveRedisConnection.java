@@ -20,7 +20,9 @@ import static org.springframework.data.redis.connection.lettuce.LettuceReactiveR
 import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.reactive.BaseRedisReactiveCommands;
+import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
+import io.lettuce.core.cluster.api.reactive.RedisAdvancedClusterReactiveCommands;
 import io.lettuce.core.cluster.api.reactive.RedisClusterReactiveCommands;
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
@@ -227,9 +229,10 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 			StatefulConnection<ByteBuffer, ByteBuffer> connection) {
 
 		if (connection instanceof StatefulRedisConnection) {
-			return ((StatefulRedisConnection<ByteBuffer, ByteBuffer>) connection).reactive();
+			return RedisReactiveCommands.from((StatefulRedisConnection<ByteBuffer, ByteBuffer>) connection);
 		} else if (connection instanceof StatefulRedisClusterConnection) {
-			return ((StatefulRedisClusterConnection<ByteBuffer, ByteBuffer>) connection).reactive();
+			return RedisAdvancedClusterReactiveCommands
+					.from((StatefulRedisClusterConnection<ByteBuffer, ByteBuffer>) connection);
 		}
 
 		throw new IllegalStateException("o.O unknown connection type " + connection);
