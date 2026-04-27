@@ -321,12 +321,12 @@ class LettuceConvertersUnitTests {
 			sentinelConfiguration.setPassword(password);
 
 			RedisURI redisURI = LettuceConverters.sentinelConfigurationToRedisURI(sentinelConfiguration);
-			RedisCredentials credentials = redisURI.getCredentialsProvider().resolveCredentials().block();
+			RedisCredentials credentials = redisURI.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join();
 			Assertions.assertNotNull(credentials);
 			assertThat(credentials.getUsername()).isEqualTo("app");
 
 			redisURI.getSentinels().forEach(sentinel -> {
-				RedisCredentials sentinelCredentials = sentinel.getCredentialsProvider().resolveCredentials().block();
+				RedisCredentials sentinelCredentials = sentinel.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join();
 				Assertions.assertNotNull(sentinelCredentials);
 				assertThat(sentinelCredentials.getUsername()).isNull();
 				assertThat(sentinelCredentials.getPassword()).isNull();
@@ -339,12 +339,12 @@ class LettuceConvertersUnitTests {
 		private void assertCredentialsSetAsExpected(RedisURI redisURI, String expectedRedisUser,
 				char[] expectedRedisPassword, String expectedSentinelUser, char[] expectedSentinelPassword) {
 
-			RedisCredentials redisCredentials = redisURI.getCredentialsProvider().resolveCredentials().block();
+			RedisCredentials redisCredentials = redisURI.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join();
 			assertThat(redisCredentials).extracting(RedisCredentials::getUsername, RedisCredentials::getPassword)
 					.containsExactly(expectedRedisUser, expectedRedisPassword);
 
 			redisURI.getSentinels().forEach(sentinel -> {
-				RedisCredentials sentinelCredentials = sentinel.getCredentialsProvider().resolveCredentials().block();
+				RedisCredentials sentinelCredentials = sentinel.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join();
 				assertThat(sentinelCredentials).extracting(RedisCredentials::getUsername, RedisCredentials::getPassword)
 						.containsExactly(expectedSentinelUser, expectedSentinelPassword);
 			});

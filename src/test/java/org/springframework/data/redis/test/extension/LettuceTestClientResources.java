@@ -17,13 +17,14 @@ package org.springframework.data.redis.test.extension;
 
 import io.lettuce.core.event.Event;
 import io.lettuce.core.event.EventBus;
+import io.lettuce.core.event.ReactiveEventBus;
 import io.lettuce.core.resource.ClientResources;
 import io.lettuce.core.resource.DefaultClientResources;
-import reactor.core.publisher.Flux;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.springframework.core.Ordered;
 
@@ -48,13 +49,18 @@ public class LettuceTestClientResources {
 
 		return DefaultClientResources.builder().ioThreadPoolSize(4).computationThreadPoolSize(4).eventBus(new EventBus() {
 			@Override
-			public Flux<Event> get() {
-				return Flux.empty();
+			public Closeable subscribe(Consumer<Event> listener) {
+				return () -> {};
 			}
 
 			@Override
 			public void publish(Event event) {
 
+			}
+
+			@Override
+			public ReactiveEventBus reactive() {
+				throw new UnsupportedOperationException("Reactive EventBus not available in tests");
 			}
 		}).build();
 	}

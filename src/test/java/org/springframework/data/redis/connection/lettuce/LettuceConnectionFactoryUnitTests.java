@@ -187,7 +187,7 @@ class LettuceConnectionFactoryUnitTests {
 		Iterable<RedisURI> initialUris = (Iterable<RedisURI>) getField(client, "initialUris");
 
 		for (RedisURI uri : initialUris) {
-			assertThat(uri.getCredentialsProvider().resolveCredentials().block())
+			assertThat(uri.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 					.extracting(RedisCredentials::getPassword)
 					.isEqualTo("o_O".toCharArray());
 		}
@@ -212,7 +212,7 @@ class LettuceConnectionFactoryUnitTests {
 		Iterable<RedisURI> initialUris = (Iterable<RedisURI>) getField(client, "initialUris");
 
 		for (RedisURI uri : initialUris) {
-			assertThat(uri.getCredentialsProvider().resolveCredentials().block())
+			assertThat(uri.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 					.extracting(RedisCredentials::getUsername, RedisCredentials::getPassword)
 					.containsExactly("foo", "bar".toCharArray());
 		}
@@ -237,7 +237,7 @@ class LettuceConnectionFactoryUnitTests {
 
 		RedisURI uri = (RedisURI) getField(client, "redisURI");
 
-		assertThat(uri.getCredentialsProvider().resolveCredentials().block())
+		assertThat(uri.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 				.extracting(RedisCredentials::getUsername, RedisCredentials::getPassword)
 				.containsExactly("foo", "bar".toCharArray());
 	}
@@ -257,12 +257,12 @@ class LettuceConnectionFactoryUnitTests {
 
 		RedisURI redisUri = requireNonNullRedisURI(client);
 
-		assertThat(redisUri.getCredentialsProvider().resolveCredentials().block())
+		assertThat(redisUri.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 				.extracting(RedisCredentials::getPassword)
 				.isEqualTo("o_O".toCharArray());
 
 		for (RedisURI sentinel : redisUri.getSentinels()) {
-			assertThat(sentinel.getCredentialsProvider().resolveCredentials().block())
+			assertThat(sentinel.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 					.extracting(RedisCredentials::getPassword)
 					.isNull();
 		}
@@ -285,12 +285,12 @@ class LettuceConnectionFactoryUnitTests {
 
 		RedisURI redisUri = requireNonNullRedisURI(client);
 
-		assertThat(redisUri.getCredentialsProvider().resolveCredentials().block())
+		assertThat(redisUri.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 				.extracting(RedisCredentials::getPassword)
 				.isEqualTo("o_O".toCharArray());
 
 		for (RedisURI sentinel : redisUri.getSentinels()) {
-			assertThat(sentinel.getCredentialsProvider().resolveCredentials().block())
+			assertThat(sentinel.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 					.extracting(RedisCredentials::getPassword)
 					.isEqualTo("sentinel-pwd".toCharArray());
 		}
@@ -316,12 +316,12 @@ class LettuceConnectionFactoryUnitTests {
 
 		RedisURI redisUri = requireNonNullRedisURI(client);
 
-		assertThat(redisUri.getCredentialsProvider().resolveCredentials().block())
+		assertThat(redisUri.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 				.extracting(RedisCredentials::getUsername, RedisCredentials::getPassword)
 				.containsExactly("data-user", "data-pwd".toCharArray());
 
 		for (RedisURI sentinelUri : redisUri.getSentinels()) {
-			assertThat(sentinelUri.getCredentialsProvider().resolveCredentials().block())
+			assertThat(sentinelUri.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 					.extracting(RedisCredentials::getUsername, RedisCredentials::getPassword)
 					.containsExactly(null, "sentinel-pwd".toCharArray());
 		}
@@ -343,12 +343,12 @@ class LettuceConnectionFactoryUnitTests {
 
 		RedisURI redisUri = requireNonNullRedisURI(client);
 
-		assertThat(redisUri.getCredentialsProvider().resolveCredentials().block())
+		assertThat(redisUri.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 				.extracting(RedisCredentials::getPassword)
 				.isNull();
 
 		for (RedisURI sentinel : redisUri.getSentinels()) {
-			assertThat(sentinel.getCredentialsProvider().resolveCredentials().block())
+			assertThat(sentinel.getCredentialsProvider().resolveCredentialsAsync().toCompletableFuture().join())
 					.extracting(RedisCredentials::getPassword)
 					.isEqualTo("sentinel-pwd".toCharArray());
 		}
