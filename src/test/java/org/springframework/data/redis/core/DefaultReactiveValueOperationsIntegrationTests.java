@@ -566,4 +566,54 @@ public class DefaultReactiveValueOperationsIntegrationTests<K, V> {
 
 		valueOperations.decrement(key, 1L).as(StepVerifier::create).expectNext(0L).verifyComplete();
 	}
+
+	@Test // GH-3304
+	void setWithSetSpecAlways() {
+
+		K key = keyFactory.instance();
+		V value = valueFactory.instance();
+		V otherValue = valueFactory.instance();
+
+		valueOperations.set(key, value, SetSpec::always).as(StepVerifier::create).expectNext(true).verifyComplete();
+
+		valueOperations.get(key).as(StepVerifier::create).expectNext(value).verifyComplete();
+
+		valueOperations.set(key, otherValue, SetSpec::always).as(StepVerifier::create).expectNext(true).verifyComplete();
+
+		valueOperations.get(key).as(StepVerifier::create).expectNext(otherValue).verifyComplete();
+	}
+
+	@Test // GH-3304
+	@EnabledOnCommand("DELEX")
+	void setWithSetSpecIfEquals() {
+
+		K key = keyFactory.instance();
+		V value = valueFactory.instance();
+		V otherValue = valueFactory.instance();
+
+		valueOperations.set(key, otherValue, spec -> spec.ifEquals().value(value)).as(StepVerifier::create).expectNext(false).verifyComplete();
+
+		valueOperations.set(key, value, SetSpec::always).as(StepVerifier::create).expectNext(true).verifyComplete();
+
+		valueOperations.set(key, otherValue, spec -> spec.ifEquals().value(value)).as(StepVerifier::create).expectNext(true).verifyComplete();
+
+		valueOperations.get(key).as(StepVerifier::create).expectNext(otherValue).verifyComplete();
+	}
+
+	@Test // GH-3304
+	@EnabledOnCommand("DELEX")
+	void compareAndSet() {
+
+		K key = keyFactory.instance();
+		V value = valueFactory.instance();
+		V otherValue = valueFactory.instance();
+
+		valueOperations.compareAndSet(key, value, value).as(StepVerifier::create).expectNext(false).verifyComplete();
+
+		valueOperations.set(key, value).as(StepVerifier::create).expectNext(true).verifyComplete();
+
+		valueOperations.compareAndSet(key, otherValue, otherValue).as(StepVerifier::create).expectNext(false).verifyComplete();
+
+		valueOperations.compareAndSet(key, value, otherValue).as(StepVerifier::create).expectNext(true).verifyComplete();
+	}
 }

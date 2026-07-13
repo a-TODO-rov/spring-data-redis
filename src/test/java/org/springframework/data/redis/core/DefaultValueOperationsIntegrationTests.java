@@ -48,6 +48,7 @@ import org.springframework.data.redis.test.condition.EnabledOnCommand;
  * @author Mark Paluch
  * @author Hendrik Duerkop
  * @author Chris Bono
+ * @author Yordan Tsintsov
  */
 @ParameterizedClass
 @MethodSource("testParams")
@@ -774,5 +775,44 @@ public class DefaultValueOperationsIntegrationTests<K, V> {
 		valueOps.setBit(key, bitOffset, true);
 
 		assertThat(valueOps.getBit(key, bitOffset)).isTrue();
+	}
+
+	@Test // GH-3304
+	void testSetWithSetSpecAlwaysWhenKeyExists() {
+
+		K key = keyFactory.instance();
+		V value = valueFactory.instance();
+
+		assertThat(valueOps.set(key, value, SetSpec::always)).isTrue();
+		assertThat(valueOps.get(key)).isEqualTo(value);
+	}
+
+
+	@Test
+	@EnabledOnCommand("DELEX")
+	void testSetWithSetSpecIfEqualsWhenValueMatches() {
+
+		K key = keyFactory.instance();
+		V value = valueFactory.instance();
+		V otherValue = valueFactory.instance();
+
+		valueOps.set(key, value);
+
+		assertThat(valueOps.set(key, otherValue, spec -> spec.ifEquals().value(value))).isTrue();
+		assertThat(valueOps.get(key)).isEqualTo(otherValue);
+	}
+
+	@Test // GH-3304
+	@EnabledOnCommand("DELEX")
+	void testCompareAndSetWillSucceed() {
+
+		K key = keyFactory.instance();
+		V value = valueFactory.instance();
+		V otherValue = valueFactory.instance();
+
+		valueOps.set(key, value);
+
+		assertThat(valueOps.compareAndSet(key, value, otherValue)).isTrue();
+		assertThat(valueOps.get(key)).isEqualTo(otherValue);
 	}
 }

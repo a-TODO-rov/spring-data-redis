@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -29,7 +30,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.connection.DefaultedRedisConnection;
 import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.connection.RedisStringCommands.SetOption;
+import org.springframework.data.redis.connection.SetCondition;
 import org.springframework.data.redis.core.types.Expiration;
 
 /**
@@ -214,53 +215,51 @@ class DefaultValueOperations<K, V> extends AbstractOperations<K, V> implements V
 		byte[] rawKey = rawKey(key);
 		byte[] rawValue = rawValue(value);
 
-		execute(connection -> connection.set(rawKey, rawValue, expiration, SetOption.upsert()));
+		execute(connection -> connection.set(rawKey, rawValue, SetCondition.upsert(), expiration));
 	}
 
 	@Override
-	@Deprecated
-	public void set(K key, V value, long timeout, TimeUnit unit) {
+	public @Nullable Boolean set(@NonNull K key, @NonNull V value, @NonNull Consumer<SetSpec<K, V>> setConsumer) {
+
+		DefaultSetSpec<K, V> builder = new DefaultSetSpec<>();
+		setConsumer.accept(builder);
+		SetCondition condition = builder.toSetCondition(this::rawValue);
 
 		byte[] rawKey = rawKey(key);
 		byte[] rawValue = rawValue(value);
 
-		execute(connection -> connection.set(rawKey, rawValue, Expiration.from(timeout, unit), SetOption.upsert()));
+		return execute(connection -> connection.set(rawKey, rawValue, condition, builder.getExpiration()));
 	}
 
 	@Override
 	public @Nullable V setGet(K key, V value, Expiration expiration) {
-		return doSetGet(key, value, expiration);
-	}
-
-	@Override
-	@Deprecated
-	public @Nullable V setGet(K key, V value, long timeout, TimeUnit unit) {
-		return doSetGet(key, value, Expiration.from(timeout, unit));
-	}
-
-	@Override
-	public @Nullable V setGet(K key, V value, Duration duration) {
-		return doSetGet(key, value, Expiration.from(duration));
-	}
-
-	private @Nullable V doSetGet(K key, V value, Expiration duration) {
 
 		byte[] rawValue = rawValue(value);
 		return execute(new ValueDeserializingRedisCallback(key) {
 
 			@Override
 			protected byte[] inRedis(byte[] rawKey, RedisConnection connection) {
-				return connection.stringCommands().setGet(rawKey, rawValue, duration, SetOption.UPSERT);
+				return connection.stringCommands().setGet(rawKey, rawValue, SetCondition.upsert(), expiration);
 			}
 		});
 	}
 
 	@Override
-	public Boolean setIfAbsent(K key, V value) {
+	public @Nullable V setGet(@NonNull K key, @NonNull V value, @NonNull Consumer<SetSpec<K, V>> setConsumer) {
 
-		byte[] rawKey = rawKey(key);
+		DefaultSetSpec<K, V> builder = new DefaultSetSpec<>();
+		setConsumer.accept(builder);
+		SetCondition condition = builder.toSetCondition(this::rawValue);
+
 		byte[] rawValue = rawValue(value);
-		return execute(connection -> connection.set(rawKey, rawValue, Expiration.persistent(), SetOption.ifAbsent()));
+
+		return execute(new ValueDeserializingRedisCallback(key) {
+
+			@Override
+			protected byte[] inRedis(byte[] rawKey, RedisConnection connection) {
+				return connection.stringCommands().setGet(rawKey, rawValue, condition, builder.getExpiration());
+			}
+		});
 	}
 
 	@Override
@@ -269,28 +268,7 @@ class DefaultValueOperations<K, V> extends AbstractOperations<K, V> implements V
 		byte[] rawKey = rawKey(key);
 		byte[] rawValue = rawValue(value);
 
-		return execute(connection -> connection.set(rawKey, rawValue, expiration, SetOption.ifAbsent()));
-	}
-
-	@Override
-	@Deprecated
-	public Boolean setIfAbsent(K key, V value, long timeout, TimeUnit unit) {
-
-		byte[] rawKey = rawKey(key);
-		byte[] rawValue = rawValue(value);
-
-		Expiration expiration = Expiration.from(timeout, unit);
-		return execute(connection -> connection.set(rawKey, rawValue, expiration, SetOption.ifAbsent()));
-	}
-
-	@Nullable
-	@Override
-	public Boolean setIfPresent(K key, V value) {
-
-		byte[] rawKey = rawKey(key);
-		byte[] rawValue = rawValue(value);
-
-		return execute(connection -> connection.set(rawKey, rawValue, Expiration.persistent(), SetOption.ifPresent()));
+		return execute(connection -> connection.set(rawKey, rawValue, SetCondition.ifAbsent(), expiration));
 	}
 
 	@Override
@@ -299,19 +277,19 @@ class DefaultValueOperations<K, V> extends AbstractOperations<K, V> implements V
 		byte[] rawKey = rawKey(key);
 		byte[] rawValue = rawValue(value);
 
-		return execute(connection -> connection.set(rawKey, rawValue, expiration, SetOption.ifPresent()));
+		return execute(connection -> connection.set(rawKey, rawValue, SetCondition.ifPresent(), expiration));
 	}
 
-	@Nullable
 	@Override
-	@Deprecated
-	public Boolean setIfPresent(K key, V value, long timeout, TimeUnit unit) {
+	public @Nullable Boolean compareAndSet(K key, V expectedValue, V newValue) {
 
 		byte[] rawKey = rawKey(key);
-		byte[] rawValue = rawValue(value);
+		byte[] rawExpectedValue = rawValue(expectedValue);
+		byte[] rawNewValue = rawValue(newValue);
 
-		Expiration expiration = Expiration.from(timeout, unit);
-		return execute(connection -> connection.set(rawKey, rawValue, expiration, SetOption.ifPresent()));
+		SetCondition condition = SetCondition.ifEquals(rawExpectedValue);
+
+		return execute(connection -> connection.set(rawKey, rawNewValue, condition, Expiration.persistent()));
 	}
 
 	@Override

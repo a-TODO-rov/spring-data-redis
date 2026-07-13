@@ -73,8 +73,8 @@ import org.springframework.data.redis.connection.RedisNode;
 import org.springframework.data.redis.connection.RedisServer;
 import org.springframework.data.redis.connection.RedisServerCommands;
 import org.springframework.data.redis.connection.RedisStringCommands.BitOperation;
-import org.springframework.data.redis.connection.RedisStringCommands.SetOption;
 import org.springframework.data.redis.connection.RedisZSetCommands.ZAddArgs;
+import org.springframework.data.redis.connection.SetCondition;
 import org.springframework.data.redis.connection.SortParameters;
 import org.springframework.data.redis.connection.SortParameters.Order;
 import org.springframework.data.redis.connection.SortParameters.Range;
@@ -290,7 +290,7 @@ abstract class JedisConverters extends Converters {
 			case NOT -> BitOP.NOT;
 			case XOR -> BitOP.XOR;
 			case DIFF -> BitOP.DIFF;
-			case DIFF1 ->  BitOP.DIFF1;
+			case DIFF1 -> BitOP.DIFF1;
 			case ANDOR -> BitOP.ANDOR;
 			case ONE -> BitOP.ONE;
 		};
@@ -410,46 +410,29 @@ abstract class JedisConverters extends Converters {
 	}
 
 	/**
-	 * Converts a given {@link SetOption} to the according {@code SET} command argument.<br />
-	 * <dl>
-	 * <dt>{@link SetOption#SET_IF_PRESENT}</dt>
-	 * <dd>{@code XX}</dd>
-	 * <dt>{@link SetOption#SET_IF_ABSENT}</dt>
-	 * <dd>{@code NX}</dd>
-	 * <dt>{@link SetOption#UPSERT}</dt>
-	 * <dd>{@code byte[0]}</dd>
-	 * </dl>
+	 * Converts a given {@link Expiration} and {@link SetCondition} to the according {@link SetParams}.
 	 *
-	 * @param option must not be {@literal null}.
-	 * @since 2.2
+	 * @param expiration can be {@literal null}.
+	 * @param condition can be {@literal null}.
+	 * @since 4.1
 	 */
-	public static SetParams toSetCommandNxXxArgument(SetOption option) {
-		return toSetCommandNxXxArgument(option, SetParams.setParams());
-	}
+	static SetParams toSetParams(Expiration expiration, SetCondition condition) {
 
-	/**
-	 * Converts a given {@link SetOption} to the according {@code SET} command argument.<br />
-	 * <dl>
-	 * <dt>{@link SetOption#SET_IF_PRESENT}</dt>
-	 * <dd>{@code XX}</dd>
-	 * <dt>{@link SetOption#SET_IF_ABSENT}</dt>
-	 * <dd>{@code NX}</dd>
-	 * <dt>{@link SetOption#UPSERT}</dt>
-	 * <dd>{@code byte[0]}</dd>
-	 * </dl>
-	 *
-	 * @param option must not be {@literal null}.
-	 * @since 2.2
-	 */
-	public static SetParams toSetCommandNxXxArgument(SetOption option, SetParams params) {
+		SetParams params = toSetCommandExPxArgument(expiration, SetParams.setParams());
 
-		SetParams paramsToUse = params == null ? SetParams.setParams() : params;
+		switch (condition.getKeyCondition()) {
+			case UPSERT -> {}
+			case IF_ABSENT -> params.nx();
+			case IF_PRESENT -> params.xx();
+		}
 
-		return switch (option) {
-			case SET_IF_PRESENT -> paramsToUse.xx();
-			case SET_IF_ABSENT -> paramsToUse.nx();
-			default -> paramsToUse;
-		};
+		CompareCondition compareCondition = condition.getCompareCondition();
+
+		if (compareCondition != null) {
+			params.condition(toCompareCondition(compareCondition));
+		}
+
+		return params;
 	}
 
 	/**

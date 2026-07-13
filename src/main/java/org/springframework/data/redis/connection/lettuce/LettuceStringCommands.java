@@ -16,6 +16,7 @@
 package org.springframework.data.redis.connection.lettuce;
 
 import io.lettuce.core.BitFieldArgs;
+import io.lettuce.core.SetArgs;
 import io.lettuce.core.api.async.RedisStringAsyncCommands;
 
 import java.util.List;
@@ -23,11 +24,11 @@ import java.util.Map;
 
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.NullUnmarked;
-import org.jspecify.annotations.Nullable;
 
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.connection.RedisStringCommands;
+import org.springframework.data.redis.connection.SetCondition;
 import org.springframework.data.redis.connection.convert.Converters;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.data.redis.util.KeyUtils;
@@ -42,6 +43,7 @@ import org.springframework.util.Assert;
  * @author John Blum
  * @author Marcin Grzejszczak
  * @author Viktoriya Kutsarova
+ * @author Yordan Tsintsov
  * @since 2.0
  */
 @NullUnmarked
@@ -108,30 +110,31 @@ class LettuceStringCommands implements RedisStringCommands {
 	}
 
 	@Override
-	public Boolean set(byte @NonNull [] key, byte @NonNull [] value, @NonNull Expiration expiration,
-			@NonNull SetOption option) {
+	public Boolean set(byte @NonNull [] key, byte @NonNull [] value, @NonNull SetCondition condition, @NonNull Expiration expiration) {
 
 		Assert.notNull(key, "Key must not be null");
 		Assert.notNull(value, "Value must not be null");
+		Assert.notNull(condition, "Condition must not be null");
 		Assert.notNull(expiration, "Expiration must not be null");
-		Assert.notNull(option, "Option must not be null");
+
+		SetArgs args = LettuceConverters.toSetArgs(expiration, condition);
 
 		return connection.invoke()
-				.from(RedisStringAsyncCommands::set, key, value, LettuceConverters.toSetArgs(expiration, option))
+				.from(RedisStringAsyncCommands::set, key, value, args)
 				.orElse(LettuceConverters.stringToBooleanConverter(), false);
 	}
 
 	@Override
-	public byte @Nullable [] setGet(byte @NonNull [] key, byte @NonNull [] value, @NonNull Expiration expiration,
-			@NonNull SetOption option) {
+	public byte[] setGet(byte @NonNull [] key, byte @NonNull [] value, @NonNull SetCondition condition, @NonNull Expiration expiration) {
 
 		Assert.notNull(key, "Key must not be null");
 		Assert.notNull(value, "Value must not be null");
+		Assert.notNull(condition, "Condition must not be null");
 		Assert.notNull(expiration, "Expiration must not be null");
-		Assert.notNull(option, "Option must not be null");
 
-		return connection.invoke().just(RedisStringAsyncCommands::setGet, key, value,
-				LettuceConverters.toSetArgs(expiration, option));
+		SetArgs args = LettuceConverters.toSetArgs(expiration, condition);
+
+		return connection.invoke().just(RedisStringAsyncCommands::setGet, key, value, args);
 	}
 
 	@Override

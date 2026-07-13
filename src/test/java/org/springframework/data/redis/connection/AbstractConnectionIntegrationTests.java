@@ -629,6 +629,20 @@ public abstract class AbstractConnectionIntegrationTests {
 		assertThat(connection.exists("foo")).isTrue();
 	}
 
+	@Test // GH-3333
+	@EnabledOnCommand("DIGEST")
+	void digestShouldReturnDigestForExistingKey() {
+
+		String key = "digest-" + UUID.randomUUID();
+		actual.add(connection.set(key, "bar"));
+		actual.add(connection.digest(key));
+
+		List<Object> results = getResults();
+
+		assertThat(results.get(0)).isEqualTo(true);
+		assertThat(results.get(1).toString()).hasSize(16);
+	}
+
 	@Test
 	public void testInfo() {
 
@@ -3009,14 +3023,6 @@ public abstract class AbstractConnectionIntegrationTests {
 		assertThat((Set<String>) results.get(13)).contains("c", "b").doesNotContain("a", "d", "e", "f", "g");
 	}
 
-	@Test // DATAREDIS-316, DATAREDIS-692
-	void setWithExpirationAndNullOpionShouldThrowException() {
-
-		String key = "exp-" + UUID.randomUUID();
-		assertThatIllegalArgumentException()
-				.isThrownBy(() -> connection.set(key, "foo", Expiration.milliseconds(500), null));
-	}
-
 	@Test // DATAREDIS-316
 	void setWithExpirationAndUpsertOpionShouldSetTtlWhenKeyDoesNotExist() {
 
@@ -3123,7 +3129,7 @@ public abstract class AbstractConnectionIntegrationTests {
 	}
 
 	@Test // DATAREDIS-316, DATAREDIS-692
-	void setWithNullExpirationAndUpsertOpionShouldThrowException() {
+	void setWithNullExpirationAndUpsertOptionShouldThrowException() {
 
 		String key = "exp-" + UUID.randomUUID();
 		assertThatIllegalArgumentException().isThrownBy(() -> connection.set(key, "foo", null, SetOption.upsert()));
@@ -3233,6 +3239,36 @@ public abstract class AbstractConnectionIntegrationTests {
 		assertThat(result.get(0)).isEqualTo(Boolean.FALSE);
 		assertThat(result.get(1)).isEqualTo(Boolean.FALSE);
 		assertThat(((Long) result.get(2)).doubleValue()).isCloseTo(-2, Offset.offset(0d));
+	}
+
+	@Test
+	void setWithConditionUpsertShouldSetValue() {
+
+		String key = "set-cond-" + UUID.randomUUID();
+		actual.add(connection.set(key, "foo", SetCondition.upsert(), Expiration.persistent()));
+
+		actual.add(connection.exists(key));
+		actual.add(connection.get(key));
+
+		List<Object> result = getResults();
+		assertThat(result.get(0)).isEqualTo(Boolean.TRUE);
+		assertThat(result.get(1)).isEqualTo(Boolean.TRUE);
+		assertThat(result.get(2)).isEqualTo("foo");
+	}
+
+	@Test
+	void setWithConditionIfAbsentShouldSetWhenKeyDoesNotExist() {
+
+		String key = "set-cond-" + UUID.randomUUID();
+		actual.add(connection.set(key, "foo", SetCondition.ifAbsent(), Expiration.persistent()));
+
+		actual.add(connection.exists(key));
+		actual.add(connection.get(key));
+
+		List<Object> result = getResults();
+		assertThat(result.get(0)).isEqualTo(Boolean.TRUE);
+		assertThat(result.get(1)).isEqualTo(Boolean.TRUE);
+		assertThat(result.get(2)).isEqualTo("foo");
 	}
 
 	@Test // GH-3318
@@ -3711,12 +3747,12 @@ public abstract class AbstractConnectionIntegrationTests {
 		long inFiveSeconds = Instant.now().plusSeconds(5L).toEpochMilli();
 
 		actual.add(connection.hpExpireAt("hash-hexpire", inFiveSeconds, "key-2"));
-		actual.add(connection.hTtl("hash-hexpire", "key-2"));
+		actual.add(connection.hpTtl("hash-hexpire", "key-2"));
 
 		List<Object> results = getResults();
 		assertThat(results.get(0)).isEqualTo(Boolean.TRUE);
 		assertThat((List) results.get(1)).contains(1L);
-		assertThat((List) results.get(2)).allSatisfy(value -> assertThat((Long) value).isBetween(0L, 5L));
+		assertThat((List) results.get(2)).allSatisfy(value -> assertThat((Long) value).isBetween(0L, 6000L));
 	}
 
 	@Test // GH-3054

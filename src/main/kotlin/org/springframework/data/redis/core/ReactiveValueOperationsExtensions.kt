@@ -36,6 +36,15 @@ suspend fun <K : Any, V : Any> ReactiveValueOperations<K, V>.setAndAwait(key: K,
  * @author Yordan Tsintsov
  * @since 4.1
  */
+suspend fun <K : Any, V : Any> ReactiveValueOperations<K, V>.setAndAwait(key: K, value: V, spec: (SetSpec<K, V>) -> Unit): Boolean =
+	set(key, value, spec).awaitSingle()
+
+/**
+ * Coroutines variant of [ReactiveValueOperations.set].
+ *
+ * @author Yordan Tsintsov
+ * @since 4.1
+ */
 suspend fun <K : Any, V : Any> ReactiveValueOperations<K, V>.setAndAwait(key: K, value: V, expiration: Expiration): Boolean =
 	set(key, value, expiration).awaitSingle()
 
@@ -47,6 +56,19 @@ suspend fun <K : Any, V : Any> ReactiveValueOperations<K, V>.setAndAwait(key: K,
  */
 suspend fun <K : Any, V : Any> ReactiveValueOperations<K, V>.setAndAwait(key: K, value: V, timeout: Duration): Boolean =
 		set(key, value, timeout).awaitSingle()
+
+/**
+ * Coroutines variant of [ReactiveValueOperations.setGet].
+ *
+ * @author Yordan Tsintsov
+ * @since 4.1
+ */
+suspend fun <K : Any, V : Any> ReactiveValueOperations<K, V>.setGetAndAwait(
+	key: K,
+	value: V,
+	spec: (SetSpec<K, V>) -> Unit
+): V? =
+	setGet(key, value, spec).awaitFirstOrNull()
 
 /**
  * Coroutines variant of [ReactiveValueOperations.setIfAbsent].
@@ -101,6 +123,19 @@ suspend fun <K : Any, V : Any> ReactiveValueOperations<K, V>.setIfPresentAndAwai
  */
 suspend fun <K : Any, V : Any> ReactiveValueOperations<K, V>.setIfPresentAndAwait(key: K, value: V, timeout: Duration): Boolean =
 		setIfPresent(key, value, timeout).awaitSingle()
+
+/**
+ * Coroutines variant of [ReactiveValueOperations.compareAndSet].
+ *
+ * @author Yordan Tsintsov
+ * @since 4.1
+ */
+suspend fun <K : Any, V : Any> ReactiveValueOperations<K, V>.compareAndSetAndAwait(
+	key: K,
+	expectedValue: V,
+	newValue: V
+): Boolean =
+	compareAndSet(key, expectedValue, newValue).awaitSingle()
 
 /**
  * Coroutines variant of [ReactiveValueOperations.multiSet].

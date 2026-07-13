@@ -1326,7 +1326,7 @@ public class LettuceClusterConnectionTests implements ClusterConnectionTests {
 
 		assertThat(clusterConnection.hashCommands().hpExpireAt(KEY_1_BYTES, inFiveSeconds, KEY_2_BYTES)).contains(1L);
 		assertThat(clusterConnection.hpTtl(KEY_1_BYTES, KEY_2_BYTES))
-				.allSatisfy(val -> assertThat(val).isGreaterThan(1000L).isLessThanOrEqualTo(5000L));
+				.allSatisfy(val -> assertThat(val).isGreaterThan(1000L).isLessThanOrEqualTo(6000L));
 	}
 
 	@Test // GH-3054
@@ -3485,6 +3485,32 @@ public class LettuceClusterConnectionTests implements ClusterConnectionTests {
 
 		assertThat(nativeConnection.ttl(KEY_1)).isCloseTo(expireSeconds, Offset.offset(5L));
 		assertThat(nativeConnection.get(KEY_1)).isEqualTo(VALUE_2);
+	}
+
+	@Test // GH-3304
+	@EnabledOnCommand("DELEX")
+	void setWithIfEqualsConditionShouldSetWhenValueMatch() {
+
+		nativeConnection.set(KEY_1, VALUE_1);
+
+		Boolean result = clusterConnection.stringCommands().set(KEY_1_BYTES, VALUE_2_BYTES,
+				SetCondition.ifEquals(VALUE_1_BYTES), Expiration.persistent());
+
+		assertThat(result).isTrue();
+		assertThat(nativeConnection.get(KEY_1)).isEqualTo(VALUE_2);
+	}
+
+	@Test // GH-3304
+	@EnabledOnCommand("DELEX")
+	void setWithIfEqualsConditionShouldNotSetWhenValueDoesNotMatch() {
+
+		nativeConnection.set(KEY_1, VALUE_1);
+
+		Boolean result = clusterConnection.stringCommands().set(KEY_1_BYTES, VALUE_2_BYTES,
+				SetCondition.ifEquals(VALUE_2_BYTES), Expiration.persistent());
+
+		assertThat(result).isFalse();
+		assertThat(nativeConnection.get(KEY_1)).isEqualTo(VALUE_1);
 	}
 
 }

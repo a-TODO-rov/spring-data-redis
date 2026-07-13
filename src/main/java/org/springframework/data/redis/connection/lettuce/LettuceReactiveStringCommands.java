@@ -23,6 +23,7 @@ import reactor.core.publisher.Mono;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
@@ -37,7 +38,7 @@ import org.springframework.data.redis.connection.ReactiveRedisConnection.MultiVa
 import org.springframework.data.redis.connection.ReactiveRedisConnection.NumericResponse;
 import org.springframework.data.redis.connection.ReactiveRedisConnection.RangeCommand;
 import org.springframework.data.redis.connection.ReactiveStringCommands;
-import org.springframework.data.redis.connection.RedisStringCommands;
+import org.springframework.data.redis.connection.SetCondition;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.data.redis.util.KeyUtils;
 import org.springframework.util.Assert;
@@ -97,7 +98,7 @@ class LettuceReactiveStringCommands implements ReactiveStringCommands {
 			Mono<String> mono = args != null ? reactiveCommands.set(command.getKey(), command.getValue(), args)
 					: reactiveCommands.set(command.getKey(), command.getValue());
 
-			return mono.map(LettuceConverters::stringToBoolean).map(value -> new BooleanResponse<>(command, value))
+			return mono.map(LettuceConverters::stringToBoolean).map(v -> new BooleanResponse<>(command, v))
 					.switchIfEmpty(Mono.just(new BooleanResponse<>(command, Boolean.FALSE)));
 		}));
 	}
@@ -115,20 +116,20 @@ class LettuceReactiveStringCommands implements ReactiveStringCommands {
 			Mono<ByteBuffer> mono = args != null ? reactiveCommands.setGet(command.getKey(), command.getValue(), args)
 					: reactiveCommands.setGet(command.getKey(), command.getValue());
 
-			return mono.map(v -> new ByteBufferResponse<>(command, v)).defaultIfEmpty(new AbsentByteBufferResponse<>(command));
+			return mono.map(v -> new ByteBufferResponse<>(command, v));
 		}));
 	}
 
 	private @Nullable SetArgs getSetArgs(SetCommand command) {
 
-		if (command.getExpiration().isEmpty() && command.getOption().isEmpty()) {
+		if (command.getExpiration().isEmpty() && command.getCondition().isEmpty()) {
 			return null;
 		}
 
-		Expiration expiration = command.getExpiration().orElse(null);
-		RedisStringCommands.SetOption setOption = command.getOption().orElse(null);
+		Expiration expiration = command.getExpiration().orElseGet(Expiration::persistent);
+		SetCondition setCondition = command.getCondition().orElseGet(SetCondition::upsert);
 
-		return LettuceConverters.toSetArgs(expiration, setOption);
+		return LettuceConverters.toSetArgs(expiration, setCondition, ByteBuffer::wrap);
 	}
 
 	@Override
@@ -139,8 +140,9 @@ class LettuceReactiveStringCommands implements ReactiveStringCommands {
 			Assert.notNull(command.getKey(), "Key must not be null");
 			Assert.notNull(command.getValue(), "Value must not be null");
 
-			if (command.getExpiration().isPresent() || command.getOption().isPresent()) {
-				throw new IllegalArgumentException("Command must not define expiration nor option for GETSET");
+			if (command.getExpiration().filter(Predicate.not(Expiration::isPersistent)).isPresent() || command.getCondition()
+					.filter(it -> !it.getKeyCondition().equals(SetCondition.KeyCondition.upsert())).isPresent()) {
+				throw new IllegalArgumentException("Command must not define expiration nor condition for GETSET");
 			}
 
 			return reactiveCommands.getset(command.getKey(), command.getValue())

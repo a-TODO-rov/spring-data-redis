@@ -77,7 +77,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 /**
- * Lettuce type converters
+ * Lettuce type converters. This is an internal class not intended to by used outside of the framework.
  *
  * @author Jennifer Hickey
  * @author Christoph Strobl
@@ -89,6 +89,7 @@ import org.springframework.util.StringUtils;
  * @author Vikas Garg
  * @author John Blum
  * @author Roman Osadchuk
+ * @author Yordan Tsintsov
  */
 @SuppressWarnings("ConstantConditions")
 public abstract class LettuceConverters extends Converters {
@@ -281,7 +282,7 @@ public abstract class LettuceConverters extends Converters {
 	}
 
 	/**
-	 * Convert a {@link org.springframework.data.redis.connection.RedisZSetCommands.Range} to a lettuce {@link Range}.
+	 * Convert a {@link RedisZSetCommands.Range} to a lettuce {@link Range}.
 	 *
 	 * @since 2.0
 	 */
@@ -466,7 +467,7 @@ public abstract class LettuceConverters extends Converters {
 	private static void applyAuthentication(RedisURI redisURI, RedisConfiguration.WithAuthentication redisConfiguration) {
 
 		RedisCredentials credentials = redisURI.getCredentialsProvider().resolveCredentials().block();
-		if(credentials == null) {
+		if (credentials == null) {
 			return;
 		}
 
@@ -560,35 +561,54 @@ public abstract class LettuceConverters extends Converters {
 	 * @param expiration can be {@literal null}.
 	 * @param option can be {@literal null}.
 	 * @since 1.7
+	 * @deprecated since 4.1.
 	 */
+	@Deprecated(since = "4.1", forRemoval = true)
 	public static SetArgs toSetArgs(@Nullable Expiration expiration, @Nullable SetOption option) {
+		return toSetArgs(expiration != null ? expiration : Expiration.persistent(),
+				option != null ? option.toSetCondition() : SetCondition.upsert());
+	}
 
-		SetArgs args = new SetArgs();
+	static SetArgs toSetArgs(Expiration expiration, SetCondition condition) {
+		return toSetArgs(expiration, condition, Function.identity());
+	}
 
-		if (expiration != null) {
+	static <T> SetArgs toSetArgs(Expiration expiration, SetCondition condition, Function<byte[], T> valueConverter) {
 
-			if (expiration.isKeepTtl()) {
-				args.keepttl();
-			} else if (!expiration.isPersistent()) {
+		SetArgs args = applySetExpiration(new SetArgs(), expiration);
 
-				ExpirationAdapter adapter = ExpirationAdapter.of(expiration);
-
-				if (adapter.isPrecise()) {
-					adapter.apply(args::px, args::pxAt);
-				} else {
-					adapter.apply(args::ex, args::exAt);
-				}
-			}
+		switch (condition.getKeyCondition()) {
+			case IF_ABSENT -> args.nx();
+			case IF_PRESENT -> args.xx();
+			case UPSERT -> {}
 		}
 
-		if (option != null) {
-			switch (option) {
-				case SET_IF_ABSENT -> args.nx();
-				case SET_IF_PRESENT -> args.xx();
-			}
+		org.springframework.data.redis.connection.CompareCondition compareCondition = condition.getCompareCondition();
+
+		if (compareCondition != null) {
+			args.compareCondition(toCompareCondition(compareCondition, valueConverter));
 		}
 
 		return args;
+	}
+
+	private static SetArgs applySetExpiration(SetArgs args, Expiration expiration) {
+
+		if (expiration.isKeepTtl()) {
+			return args.keepttl();
+		}
+
+		if (expiration.isPersistent()) {
+			return args;
+		}
+
+		ExpirationAdapter adapter = ExpirationAdapter.of(expiration);
+
+		if (adapter.isPrecise()) {
+			return adapter.apply(args::px, args::pxAt);
+		}
+
+		return adapter.apply(args::ex, args::exAt);
 	}
 
 	/**
@@ -614,11 +634,11 @@ public abstract class LettuceConverters extends Converters {
 			case DIGEST ->
 				condition.getOperator() == org.springframework.data.redis.connection.CompareCondition.ComparisonOperator.EQUALS
 						? CompareCondition.digestEq(condition.getValue().toString())
-					: CompareCondition.digestNe(condition.getValue().toString());
+						: CompareCondition.digestNe(condition.getValue().toString());
 			case VALUE ->
 				condition.getOperator() == org.springframework.data.redis.connection.CompareCondition.ComparisonOperator.EQUALS
 						? CompareCondition.valueEq(valueConverter.apply(condition.getValue().asBytes()))
-					: CompareCondition.valueNe(valueConverter.apply(condition.getValue().asBytes()));
+						: CompareCondition.valueNe(valueConverter.apply(condition.getValue().asBytes()));
 		};
 	}
 

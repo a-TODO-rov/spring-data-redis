@@ -169,6 +169,17 @@ public interface StringRedisConnection extends RedisConnection {
 	Boolean copy(@NonNull String sourceKey, @NonNull String targetKey, boolean replace);
 
 	/**
+	 * Get the hash digest for the value stored in the specified key as a hexadecimal string. This command is intended to
+	 * be used with string values only.
+	 *
+	 * @param key must not be {@literal null}.
+	 * @return {@literal null} when used in pipeline / transaction.
+	 * @see <a href="https://redis.io/commands/digest">Redis Documentation: DIGEST</a>
+	 * @since 4.1
+	 */
+	String digest(@NonNull String key);
+
+	/**
 	 * Unlink the {@code keys} from the keyspace. Unlike with {@link #del(String...)} the actual memory reclaiming here
 	 * happens asynchronously.
 	 *
@@ -541,8 +552,41 @@ public interface StringRedisConnection extends RedisConnection {
 	 * @since 1.7
 	 * @see <a href="https://redis.io/commands/set">Redis Documentation: SET</a>
 	 * @see RedisStringCommands#set(byte[], byte[], Expiration, SetOption)
+	 * @deprecated since 4.1 in favor of {@link #set(String, String, SetCondition, Expiration)}.
 	 */
+	@Deprecated(since = "4.1")
 	Boolean set(@NonNull String key, @NonNull String value, @Nullable Expiration expiration, @Nullable SetOption option);
+
+	/**
+	 * Set {@code value} for {@code key} applying timeouts from {@code expiration} if set and inserting/updating values
+	 * depending on {@code condition}.
+	 *
+	 * @param key must not be {@literal null}.
+	 * @param value must not be {@literal null}
+	 * @param condition can be {@literal null}. Defaulted to {@link SetCondition#upsert()}.
+	 * @param expiration can be {@literal null}. Defaulted to {@link Expiration#persistent()}. Use
+	 *          {@link Expiration#keepTtl()} to keep the existing expiration.
+	 * @return {@literal true} if the command was applied, {@literal false} otherwise.
+	 * @see <a href="https://redis.io/commands/set">Redis Documentation: SET</a>
+	 * @since 4.1
+	 */
+	Boolean set(@NonNull String key, @NonNull String value, SetCondition condition, Expiration expiration);
+
+	/**
+	 * Set {@code value} for {@code key} applying timeouts from {@code expiration} if set and inserting/updating values
+	 * depending on {@code condition}. Return the old string stored at key, or {@literal null} if key did not exist.
+	 *
+	 * @param key must not be {@literal null}.
+	 * @param value must not be {@literal null}.
+	 * @param condition can be {@literal null}. Defaulted to {@link SetCondition#upsert()}.
+	 * @param expiration can be {@literal null}. Defaulted to {@link Expiration#persistent()}. Use
+	 *          {@link Expiration#keepTtl()} to keep the existing expiration.
+	 * @return the old value stored at key, or {@literal null} if key did not exist.
+	 * @see <a href="https://redis.io/commands/set">Redis Documentation: SET</a>
+	 * @see RedisStringCommands#setGet(byte[], byte[], SetCondition, Expiration)
+	 * @since 4.1
+	 */
+	String setGet(@NonNull String key, @NonNull String value, SetCondition condition, Expiration expiration);
 
 	/**
 	 * Set {@code value} for {@code key}, only if {@code key} does not exist.

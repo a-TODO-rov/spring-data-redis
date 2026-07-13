@@ -22,19 +22,32 @@ import org.springframework.data.redis.connection.AbstractTransactionalTestBase;
 import org.springframework.test.context.ContextConfiguration;
 
 /**
+ * Integration tests for Spring {@code @Transactional} support with legacy {@link JedisConnection}.
+ * <p>
+ * Tests rollback/commit behavior and transaction synchronization when using the legacy Jedis API with
+ * {@link JedisConnection}.
+ *
  * @author Christoph Strobl
  * @author Mark Paluch
+ * @see TransactionalUnifiedJedisIntegrationTests
+ * @see JedisConnection
  */
 @ContextConfiguration
 public class TransactionalJedisIntegrationTests extends AbstractTransactionalTestBase {
 
 	@Configuration
-	public static class JedisContextConfiguration extends RedisContextConfiguration {
+	public static class JedisConfiguration extends RedisContextConfiguration {
 
 		@Override
 		@Bean
 		public JedisConnectionFactory redisConnectionFactory() {
-			return new JedisConnectionFactory(SettingsUtils.standaloneConfiguration());
+			// Use anonymous subclass to force legacy JedisConnection mode
+			return new JedisConnectionFactory(SettingsUtils.standaloneConfiguration()) {
+				@Override
+				public boolean isUseUnifiedJedis() {
+					return false; // Force legacy JedisConnection
+				}
+			};
 		}
 	}
 }

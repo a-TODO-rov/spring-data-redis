@@ -290,6 +290,11 @@ public class DefaultStringRedisConnection implements StringRedisConnection, Deco
 	}
 
 	@Override
+	public String digest(byte @NonNull [] key) {
+		return convertAndReturn(delegate.digest(key), Converters.identityConverter());
+	}
+
+	@Override
 	public Long dbSize() {
 		return convertAndReturn(delegate.dbSize(), Converters.identityConverter());
 	}
@@ -779,13 +784,18 @@ public class DefaultStringRedisConnection implements StringRedisConnection, Deco
 	}
 
 	@Override
-	public Boolean set(byte[] key, byte[] value, Expiration expiration, SetOption option) {
-		return convertAndReturn(delegate.set(key, value, expiration, option), Converters.identityConverter());
+	public byte[] setGet(byte[] key, byte[] value, Expiration expiration, SetOption option) {
+		return convertAndReturn(delegate.setGet(key, value, expiration, option), Converters.identityConverter());
 	}
 
 	@Override
-	public byte[] setGet(byte[] key, byte[] value, Expiration expiration, SetOption option) {
-		return convertAndReturn(delegate.setGet(key, value, expiration, option), Converters.identityConverter());
+	public Boolean set(byte[] key, byte[] value, SetCondition condition, Expiration expiration) {
+		return convertAndReturn(delegate.set(key, value, condition, expiration), Converters.identityConverter());
+	}
+
+	@Override
+	public byte[] setGet(byte[] key, byte[] value, SetCondition condition, Expiration expiration) {
+		return convertAndReturn(delegate.setGet(key, value, condition, expiration), Converters.identityConverter());
 	}
 
 	@Override
@@ -1452,6 +1462,11 @@ public class DefaultStringRedisConnection implements StringRedisConnection, Deco
 	}
 
 	@Override
+	public String digest(@NonNull String key) {
+		return digest(serialize(key));
+	}
+
+	@Override
 	public Long decr(String key) {
 		return decr(serialize(key));
 	}
@@ -1818,6 +1833,24 @@ public class DefaultStringRedisConnection implements StringRedisConnection, Deco
 	@Override
 	public Boolean set(String key, String value, Expiration expiration, SetOption option) {
 		return set(serialize(key), serialize(value), expiration, option);
+	}
+
+	@Override
+	public Boolean set(@NonNull String key, @NonNull String value, SetCondition condition, Expiration expiration) {
+
+		SetCondition conditionToUse = condition != null ? condition : SetCondition.upsert();
+		Expiration expirationToUse = expiration != null ? expiration : Expiration.persistent();
+
+		return set(serialize(key), serialize(value), conditionToUse, expirationToUse);
+	}
+
+	@Override
+	public String setGet(@NonNull String key, @NonNull String value, SetCondition condition, Expiration expiration) {
+
+		SetCondition conditionToUse = condition != null ? condition : SetCondition.upsert();
+		Expiration expirationToUse = expiration != null ? expiration : Expiration.persistent();
+
+		return convertAndReturn(delegate.setGet(serialize(key), serialize(value), conditionToUse, expirationToUse), bytesToString);
 	}
 
 	@Override

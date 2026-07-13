@@ -24,6 +24,8 @@ import java.lang.annotation.Target;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.redis.config.RedisListenerBootstrapConfiguration;
 import org.springframework.data.redis.config.RedisListenerEndpointRegistry;
+import org.springframework.data.redis.listener.RedisMessageListenerContainer;
+import org.springframework.data.redis.serializer.RedisMessageConverters;
 
 /**
  * Enable Redis Pub/Sub listener annotated endpoints that are created under the cover by a
@@ -64,8 +66,8 @@ import org.springframework.data.redis.config.RedisListenerEndpointRegistry;
  * </pre>
  * <p>
  * The container to use is identified by the {@link RedisListener#container() container} attribute defining the name of
- * the {@code RedisMessageListenerContainer} bean to use. When none is set a default
- * {@code RedisMessageListenerContainer} bean is assumed to be present.
+ * the {@link RedisMessageListenerContainer} bean to use. When none is set a {@code RedisMessageListenerContainer} bean
+ * named {@code redisMessageListenerContainer} is assumed to be present.
  * <p>
  * The following configuration would ensure that every time a Pub/Sub is received on the topic channel named
  * "myChannel", {@code MyService.process()} is invoked with the content of the message:
@@ -110,12 +112,65 @@ import org.springframework.data.redis.config.RedisListenerEndpointRegistry;
  * {@link org.springframework.messaging.handler.annotation.support.MessageHandlerMethodFactory} that is responsible for
  * building the necessary invoker to process the annotated method. By default,
  * {@link org.springframework.messaging.handler.annotation.support.DefaultMessageHandlerMethodFactory} is used.
+ * <p>
+ * Implementing {@code RedisListenerConfigurer} allows for fine-grained control over endpoint registration via the
+ * {@code RedisListenerEndpointRegistrar}. For example, the following configures an extra endpoint:
+ *
+ * <pre class="code">
+ * &#064;Configuration
+ * &#064;EnableRedisListeners
+ * public class AppConfig implements RedisListenerConfigurer {
+ *
+ * 	&#064;Override
+ * 	public void configureRedisListeners(RedisListenerEndpointRegistrar registrar) {
+ * 		SimpleRedisListenerEndpoint myEndpoint = new SimpleRedisListenerEndpoint();
+ * 		// ... configure the endpoint
+ * 		registrar.registerEndpoint(endpoint, anotherRedisMessageListenerContainer());
+ * 	}
+ *
+ * 	&#064;Bean
+ * 	public MyService myService() {
+ * 		return new MyService();
+ * 	}
+ *
+ * 	&#064;Bean
+ * 	public RedisMessageListenerContainer anotherRedisMessageListenerContainer() {
+ * 		// ...
+ * 	}
+ *
+ * 	// Redis infrastructure setup
+ * }
+ * </pre>
+ * <p>
+ * Beans implementing {@code RedisListenerConfigurer} can configure various aspects of annotation-driven endpoints
+ * including converter registration, configuration of a {@code Validator}, and configuration of
+ * {@link org.springframework.messaging.handler.invocation.HandlerMethodArgumentResolver}s. For example, the following
+ * configures the charset for a string message converter and disables built-in converter registration:
+ *
+ * <pre class="code">
+ * &#064;Configuration
+ * &#064;EnableRedisListeners
+ * public class AppConfig implements RedisListenerConfigurer {
+ *
+ * 	&#064;Override
+ * 	public void configureMessageConverters(RedisMessageConverters.Builder builder) {
+ * 		builder.withStringConverter(StandardCharsets.US_ASCII).registerDefaults(false);
+ * 	}
+ *
+ * 	// Redis infrastructure setup
+ * }
+ * </pre>
+ * <p>
+ * Note that all beans implementing {@code RedisListenerConfigurer} will be detected and invoked in a similar fashion.
+ * The example above can be translated into a regular bean definition registered in the context in case you use the XML
+ * configuration.
  *
  * @author Ilyass Bougati
  * @since 4.1
  * @see RedisListener
  * @see RedisListenerAnnotationBeanPostProcessor
  * @see RedisListenerEndpointRegistry
+ * @see RedisMessageConverters
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

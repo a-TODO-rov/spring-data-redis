@@ -16,8 +16,9 @@
 package org.springframework.data.redis.annotation;
 
 import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,13 +27,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jspecify.annotations.Nullable;
-
 import org.springframework.aop.framework.AopInfrastructureBean;
 import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.BeanInitializationException;
-import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -41,12 +41,14 @@ import org.springframework.beans.factory.config.EmbeddedValueResolver;
 import org.springframework.core.MethodIntrospector;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.core.annotation.AnnotationAwareOrderComparator;
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.redis.config.MethodRedisListenerEndpoint;
+import org.springframework.data.redis.config.RedisListenerConfigUtils;
+import org.springframework.data.redis.config.RedisListenerConfigurer;
+import org.springframework.data.redis.config.RedisListenerEndpointRegistrar;
 import org.springframework.data.redis.config.RedisListenerEndpointRegistry;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.format.support.DefaultFormattingConversionService;
 import org.springframework.messaging.handler.annotation.support.DefaultMessageHandlerMethodFactory;
 import org.springframework.messaging.handler.annotation.support.MessageHandlerMethodFactory;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
@@ -66,18 +68,20 @@ import org.springframework.util.StringValueResolver;
  *
  * @author Ilyass Bougati
  * @author Mark Paluch
+ * @author Christoph Strobl
  * @since 4.1
  * @see RedisListener
- * @see RedisListenerEndpointRegistry
  */
 public class RedisListenerAnnotationBeanPostProcessor
-		implements BeanPostProcessor, InitializingBean, BeanFactoryAware, Ordered, SmartInitializingSingleton {
+		implements BeanPostProcessor, BeanFactoryAware, Ordered, SmartInitializingSingleton {
 
 	protected final Log logger = LogFactory.getLog(getClass());
 
-	private final MessageHandlerMethodFactoryAdapter messageHandlerMethodFactory = new MessageHandlerMethodFactoryAdapter();
+	private final RedisListenerEndpointRegistrar registrar = new RedisListenerEndpointRegistrar();
 
 	private @Nullable RedisListenerEndpointRegistry endpointRegistry;
+
+	private final MessageHandlerMethodFactoryAdapter messageHandlerMethodFactory = new MessageHandlerMethodFactoryAdapter();
 
 	private int order = Ordered.LOWEST_PRECEDENCE;
 
@@ -101,7 +105,7 @@ public class RedisListenerAnnotationBeanPostProcessor
 	/**
 	 * Set the {@link RedisListenerEndpointRegistry} that will hold the created endpoint.
 	 */
-	public void setEndpointRegistry(RedisListenerEndpointRegistry endpointRegistry) {
+	public void setEndpointRegistry(@Nullable RedisListenerEndpointRegistry endpointRegistry) {
 		this.endpointRegistry = endpointRegistry;
 	}
 
@@ -109,9 +113,9 @@ public class RedisListenerAnnotationBeanPostProcessor
 	 * Set the {@link MessageHandlerMethodFactory} to use to configure the message listener responsible to serve an
 	 * endpoint detected by this processor.
 	 * <p>
-	 * By default, {@link DefaultMessageHandlerMethodFactory} is used and it can be configured further to support
-	 * additional method arguments or to customize conversion and validation support. See
-	 * {@link DefaultMessageHandlerMethodFactory} Javadoc for more details.
+	 * By default, {@link DefaultMessageHandlerMethodFactory} is used. It can be configured further to support additional
+	 * method arguments or to customize conversion and validation support. See {@link DefaultMessageHandlerMethodFactory}
+	 * Javadoc for more details.
 	 */
 	public void setMessageHandlerMethodFactory(MessageHandlerMethodFactory messageHandlerMethodFactory) {
 		this.messageHandlerMethodFactory.setMessageHandlerMethodFactory(messageHandlerMethodFactory);
@@ -123,25 +127,47 @@ public class RedisListenerAnnotationBeanPostProcessor
 	 */
 	@Override
 	public void setBeanFactory(BeanFactory beanFactory) {
+
 		this.beanFactory = beanFactory;
 		if (beanFactory instanceof ConfigurableBeanFactory cbf) {
 			this.embeddedValueResolver = new EmbeddedValueResolver(cbf);
+			this.registrar.setBeanFactory(cbf);
 		}
 	}
 
 	@Override
 	public void afterSingletonsInstantiated() {
-		// Remove resolved singleton classes from cache
+
 		this.nonAnnotatedClasses.clear();
-	}
 
-	@Override
-	public void afterPropertiesSet() throws Exception {
+		if (this.beanFactory instanceof ListableBeanFactory lbf) {
 
-		if (this.endpointRegistry == null) {
-			Assert.state(this.beanFactory != null, "BeanFactory must be set to find endpoint registry by bean name");
-			this.endpointRegistry = this.beanFactory.getBean(RedisListenerEndpointRegistry.class);
+			// Apply RedisListenerConfigurer beans from the BeanFactory, if any
+			Map<String, RedisListenerConfigurer> beans = lbf.getBeansOfType(RedisListenerConfigurer.class);
+			List<RedisListenerConfigurer> configurers = new ArrayList<>(beans.values());
+			AnnotationAwareOrderComparator.sort(configurers);
+			registrar.apply(configurers);
 		}
+
+		if (this.registrar.getEndpointRegistry() == null) {
+
+			// Determine RedisListenerEndpointRegistry bean from the BeanFactory
+			if (this.endpointRegistry == null) {
+				Assert.state(this.beanFactory != null, "BeanFactory must be set to find endpoint registry by bean name");
+				this.endpointRegistry = this.beanFactory.getBean(
+						RedisListenerConfigUtils.REDIS_LISTENER_ENDPOINT_REGISTRY_BEAN_NAME, RedisListenerEndpointRegistry.class);
+			}
+			this.registrar.setEndpointRegistry(this.endpointRegistry);
+		}
+
+		if (!this.messageHandlerMethodFactory.hasMessageHandlerMethodFactory()) {
+
+			// Set the custom handler method factory once resolved by the configurer
+			MessageHandlerMethodFactory handlerMethodFactory = this.registrar.getMessageHandlerMethodFactory();
+			this.messageHandlerMethodFactory.setMessageHandlerMethodFactory(handlerMethodFactory);
+		}
+
+		this.registrar.afterPropertiesSet();
 	}
 
 	@Override
@@ -149,7 +175,6 @@ public class RedisListenerAnnotationBeanPostProcessor
 
 		if (bean instanceof AopInfrastructureBean || bean instanceof RedisMessageListenerContainer
 				|| bean instanceof RedisListenerEndpointRegistry) {
-			// Ignore AOP infrastructure such as scoped proxies.
 			return bean;
 		}
 
@@ -164,21 +189,11 @@ public class RedisListenerAnnotationBeanPostProcessor
 					});
 			if (annotatedMethods.isEmpty()) {
 				this.nonAnnotatedClasses.add(targetClass);
-				if (logger.isTraceEnabled()) {
-					logger.trace("No @RedisListener annotations found on bean type: " + targetClass);
-				}
 			} else {
-				// Non-empty set of methods
-				annotatedMethods
-						.forEach(
-								(method, listeners) -> listeners.forEach(listener -> processRedisListener(listener, method, bean)));
-				if (logger.isDebugEnabled()) {
-					logger.debug(annotatedMethods.size() + " @RedisListener methods processed on bean '" + beanName + "': "
-							+ annotatedMethods);
-				}
+				annotatedMethods.forEach(
+						(method, listeners) -> listeners.forEach(listener -> processRedisListener(listener, method, bean)));
 			}
 		}
-
 		return bean;
 	}
 
@@ -192,39 +207,50 @@ public class RedisListenerAnnotationBeanPostProcessor
 	 */
 	protected void processRedisListener(RedisListener redisListener, Method method, Object bean) {
 
+		RedisMessageListenerContainer container = getRedisMessageListenerContainer(redisListener, method);
 		MethodRedisListenerEndpoint endpoint = createEndpoint(redisListener, method, bean);
-
-		RedisMessageListenerContainer container = null;
-		String containerName = resolve(redisListener.container());
-		Assert.state(this.beanFactory != null, "BeanFactory must be set to obtain container container by bean name");
-
-		if (StringUtils.hasText(containerName)) {
-			try {
-				container = this.beanFactory.getBean(containerName, RedisMessageListenerContainer.class);
-			} catch (NoSuchBeanDefinitionException ex) {
-				throw new BeanInitializationException("Could not register Redis listener endpoint on [" + method + "], no "
-						+ RedisMessageListenerContainer.class.getSimpleName() + " with name '" + containerName
-						+ "' was found in the application context", ex);
-			}
-		} else {
-			try {
-				container = this.beanFactory.getBean(RedisMessageListenerContainer.class);
-			} catch (NoSuchBeanDefinitionException ex) {
-				throw new BeanInitializationException("Could not register Redis listener endpoint on [" + method + "], no "
-						+ RedisMessageListenerContainer.class.getSimpleName() + " was found in the application context", ex);
-			}
-		}
-
-		this.endpointRegistry.registerListener(endpoint, container);
+		this.registrar.registerEndpoint(endpoint, container);
 	}
 
-	MethodRedisListenerEndpoint createEndpoint(RedisListener redisListener, Method method, Object bean) {
+	protected RedisMessageListenerContainer getRedisMessageListenerContainer(RedisListener redisListener, Method method) {
+
+		Assert.state(this.beanFactory != null, "BeanFactory must be set to obtain message listener container by bean name");
+
+		String containerName = resolve(redisListener.container());
+		if (StringUtils.hasText(containerName)) {
+			return getRedisMessageListenerContainer(method, containerName);
+		}
+
+		RedisMessageListenerContainer container = this.beanFactory.getBeanProvider(RedisMessageListenerContainer.class)
+				.getIfUnique();
+
+		if (container == null) {
+			container = getRedisMessageListenerContainer(method, RedisListenerConfigUtils.REDIS_MESSAGE_LISTENER_BEAN_NAME);
+		}
+
+		return container;
+	}
+
+	@SuppressWarnings("NullAway")
+	private RedisMessageListenerContainer getRedisMessageListenerContainer(Method method, String containerName) {
+
+		try {
+			return this.beanFactory.getBean(containerName, RedisMessageListenerContainer.class);
+		} catch (NoSuchBeanDefinitionException ex) {
+			throw new BeanInitializationException("Could not register Redis listener endpoint on [" + method + "], no "
+					+ RedisMessageListenerContainer.class.getSimpleName() + " with name '" + containerName
+					+ "' was found in the application context", ex);
+		}
+	}
+
+	public MethodRedisListenerEndpoint createEndpoint(RedisListener redisListener, Method method, Object bean) {
 
 		MethodRedisListenerEndpoint endpoint = new MethodRedisListenerEndpoint(bean, method);
+		endpoint.setMessageHandlerMethodFactory(this.messageHandlerMethodFactory);
 		endpoint.setId(getEndpointId(redisListener));
 		endpoint.setTopic(redisListener.topic());
+		endpoint.setConsumes(redisListener.consumes());
 
-		endpoint.setMessageHandlerMethodFactory(this.messageHandlerMethodFactory);
 		return endpoint;
 	}
 
@@ -232,8 +258,7 @@ public class RedisListenerAnnotationBeanPostProcessor
 		if (StringUtils.hasText(redisListener.id())) {
 			String id = resolve(redisListener.id());
 			return (id != null ? id : "");
-		}
-		else {
+		} else {
 			return "org.springframework.data.redis.config.RedisListenerEndpoint#" + this.counter.getAndIncrement();
 		}
 	}
@@ -245,6 +270,8 @@ public class RedisListenerAnnotationBeanPostProcessor
 	/**
 	 * A {@link MessageHandlerMethodFactory} adapter that offers a configurable underlying instance to use. Useful if the
 	 * factory to use is determined once the endpoints have been registered but not created yet.
+	 *
+	 * @see RedisListenerEndpointRegistrar#setMessageHandlerMethodFactory
 	 */
 	private class MessageHandlerMethodFactoryAdapter implements MessageHandlerMethodFactory {
 
@@ -254,6 +281,10 @@ public class RedisListenerAnnotationBeanPostProcessor
 			this.messageHandlerMethodFactory = messageHandlerMethodFactory;
 		}
 
+		public boolean hasMessageHandlerMethodFactory() {
+			return this.messageHandlerMethodFactory != null;
+		}
+
 		@Override
 		public InvocableHandlerMethod createInvocableHandlerMethod(Object bean, Method method) {
 			return getMessageHandlerMethodFactory().createInvocableHandlerMethod(bean, method);
@@ -261,36 +292,20 @@ public class RedisListenerAnnotationBeanPostProcessor
 
 		private MessageHandlerMethodFactory getMessageHandlerMethodFactory() {
 			if (this.messageHandlerMethodFactory == null) {
-				this.messageHandlerMethodFactory = createDefaultRedisHandlerMethodFactory();
+				this.messageHandlerMethodFactory = createDefaultJmsHandlerMethodFactory();
 			}
 			return this.messageHandlerMethodFactory;
 		}
 
-		private MessageHandlerMethodFactory createDefaultRedisHandlerMethodFactory() {
-
-			DefaultFormattingConversionService conversionService = new DefaultFormattingConversionService();
-			conversionService.addConverter(ByteArrayToStringConverter.INSTANCE);
+		private MessageHandlerMethodFactory createDefaultJmsHandlerMethodFactory() {
 			DefaultMessageHandlerMethodFactory defaultFactory = new DefaultMessageHandlerMethodFactory();
-			defaultFactory.setConversionService(conversionService);
-
 			if (beanFactory != null) {
 				defaultFactory.setBeanFactory(beanFactory);
 			}
-
 			defaultFactory.afterPropertiesSet();
 			return defaultFactory;
 		}
 
-	}
-
-	enum ByteArrayToStringConverter implements Converter<byte[], String> {
-
-		INSTANCE;
-
-		@Override
-		public String convert(byte[] source) {
-			return new String(source, StandardCharsets.UTF_8);
-		}
 	}
 
 }

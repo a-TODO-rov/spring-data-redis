@@ -26,6 +26,7 @@ import redis.clients.jedis.params.HSetExParams;
 import redis.clients.jedis.params.SetParams;
 import redis.clients.jedis.util.CompareCondition;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -43,7 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.RedisHashCommands;
 import org.springframework.data.redis.connection.RedisServer;
-import org.springframework.data.redis.connection.RedisStringCommands.SetOption;
+import org.springframework.data.redis.connection.SetCondition;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.data.redis.core.types.RedisClientInfo;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -251,21 +252,6 @@ class JedisConvertersUnitTests {
 
 		verify(mockSetParams, times(1)).exAt(eq(60L));
 		verifyNoMoreInteractions(mockSetParams);
-	}
-
-	@Test // DATAREDIS-316, DATAREDIS-749
-	void toSetCommandNxXxOptionShouldReturnNXforAbsent() {
-		assertThat(toString(JedisConverters.toSetCommandNxXxArgument(SetOption.ifAbsent()))).isEqualTo("nx");
-	}
-
-	@Test // DATAREDIS-316, DATAREDIS-749
-	void toSetCommandNxXxOptionShouldReturnXXforAbsent() {
-		assertThat(toString(JedisConverters.toSetCommandNxXxArgument(SetOption.ifPresent()))).isEqualTo("xx");
-	}
-
-	@Test // DATAREDIS-316, DATAREDIS-749
-	void toSetCommandNxXxOptionShouldReturnEmptyArrayforUpsert() {
-		assertThat(toString(JedisConverters.toSetCommandNxXxArgument(SetOption.upsert()))).isEqualTo("");
 	}
 
 	@Test // GH-2050
@@ -585,6 +571,35 @@ class JedisConvertersUnitTests {
 				.toCompareCondition(org.springframework.data.redis.connection.CompareCondition.ifDigestNotEquals("aabbcc"));
 
 		assertThat(condition).isEqualTo(CompareCondition.digestNe("aabbcc"));
+	}
+
+	@Test
+	void convertToEmptySetParams() {
+		assertThat(JedisConverters.toSetParams(Expiration.persistent(), SetCondition.upsert()))
+				.isEqualTo(SetParams.setParams());
+	}
+
+	@Test
+	void considersSetCondition() {
+
+		assertThat(JedisConverters.toSetParams(Expiration.persistent(), SetCondition.ifAbsent()))
+				.isEqualTo(SetParams.setParams().nx());
+		assertThat(JedisConverters.toSetParams(Expiration.persistent(), SetCondition.ifPresent()))
+				.isEqualTo(SetParams.setParams().xx());
+
+		assertThat(JedisConverters.toSetParams(Expiration.persistent(),
+				SetCondition.ifEquals("foo".getBytes(StandardCharsets.UTF_8))))
+				.isEqualTo(SetParams.setParams().condition(CompareCondition.valueEq("foo".getBytes(StandardCharsets.UTF_8))));
+
+		assertThat(JedisConverters.toSetParams(Expiration.persistent(),
+				SetCondition.ifNotEquals("foo".getBytes(StandardCharsets.UTF_8))))
+				.isEqualTo(SetParams.setParams().condition(CompareCondition.valueNe("foo".getBytes(StandardCharsets.UTF_8))));
+
+		assertThat(JedisConverters.toSetParams(Expiration.persistent(), SetCondition.ifDigestEquals("aabbcc")))
+				.isEqualTo(SetParams.setParams().condition(CompareCondition.digestEq("aabbcc")));
+
+		assertThat(JedisConverters.toSetParams(Expiration.persistent(), SetCondition.ifDigestNotEquals("aabbcc")))
+				.isEqualTo(SetParams.setParams().condition(CompareCondition.digestNe("aabbcc")));
 	}
 
 }

@@ -69,6 +69,7 @@ import org.springframework.data.redis.domain.geo.GeoShape;
  * @author Shyngys Sapraliyev
  * @author Tihomir Mateev
  * @author Mingi Lee
+ * @author Yordan Tsintsov
  * @since 2.0
  */
 @Deprecated
@@ -82,6 +83,13 @@ public interface DefaultedRedisConnection extends RedisCommands, RedisCommandsPr
 	@Deprecated
 	default Boolean copy(byte[] sourceKey, byte[] targetKey, boolean replace) {
 		return keyCommands().copy(sourceKey, targetKey, replace);
+	}
+
+	/** @deprecated in favor of {@link RedisConnection#keyCommands()}. */
+	@Override
+	@Deprecated
+	default String digest(byte[] key) {
+		return keyCommands().digest(key);
 	}
 
 	/** @deprecated in favor of {@link RedisConnection#keyCommands()}. */
@@ -362,15 +370,15 @@ public interface DefaultedRedisConnection extends RedisCommands, RedisCommandsPr
 	/** @deprecated in favor of {@link RedisConnection#stringCommands()}}. */
 	@Override
 	@Deprecated
-	default Boolean set(byte[] key, byte[] value, Expiration expiration, SetOption option) {
-		return stringCommands().set(key, value, expiration, option);
+	default Boolean set(byte[] key, byte[] value, SetCondition condition, Expiration expiration) {
+		return stringCommands().set(key, value, condition, expiration);
 	}
 
 	/** @deprecated in favor of {@link RedisConnection#stringCommands()}}. */
 	@Override
 	@Deprecated
-	default byte[] setGet(byte[] key, byte[] value, Expiration expiration, SetOption option) {
-		return stringCommands().setGet(key, value, expiration, option);
+	default byte[] setGet(byte[] key, byte[] value, SetCondition condition, Expiration expiration) {
+		return stringCommands().setGet(key, value, condition, expiration);
 	}
 
 	/** @deprecated in favor of {@link RedisConnection#stringCommands()}}. */

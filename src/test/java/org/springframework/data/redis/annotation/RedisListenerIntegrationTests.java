@@ -31,6 +31,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.config.RedisListenerConfigUtils;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.connection.jedis.extension.JedisConnectionFactoryExtension;
@@ -44,6 +45,7 @@ import org.springframework.data.redis.test.extension.RedisStandalone;
  * Integration test for {@link EnableRedisListeners} and {@link RedisListener}.
  *
  * @author Mark Paluch
+ * @author Ilyass Bougati
  */
 @ParameterizedClass
 @MethodSource("testParams")
@@ -57,7 +59,6 @@ public class RedisListenerIntegrationTests {
 	}
 
 	static Collection<Arguments> testParams() {
-
 		// Jedis
 		JedisConnectionFactory jedisConnFactory = JedisConnectionFactoryExtension
 				.getConnectionFactory(RedisStandalone.class);
@@ -73,7 +74,8 @@ public class RedisListenerIntegrationTests {
 	@Test // GH-1004
 	void shouldListenForMessage() throws InterruptedException {
 
-		context.registerBean("my-container", RedisMessageListenerContainer.class, () -> {
+		context.registerBean(RedisListenerConfigUtils.REDIS_MESSAGE_LISTENER_BEAN_NAME, RedisMessageListenerContainer.class,
+				() -> {
 
 			RedisMessageListenerContainer container = new RedisMessageListenerContainer();
 			container.setRecoveryInterval(100);
