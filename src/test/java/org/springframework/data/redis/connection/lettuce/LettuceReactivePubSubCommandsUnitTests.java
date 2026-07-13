@@ -51,7 +51,7 @@ class LettuceReactivePubSubCommandsUnitTests {
 	void setUp() {
 
 		when(connection.getPubSubConnection()).thenReturn(Mono.just(lettuceConnection));
-		when(lettuceConnection.reactive()).thenReturn(reactiveCommands);
+		when(lettuceConnection.commands(RedisPubSubReactiveCommands.factory())).thenReturn(reactiveCommands);
 		sut = new LettuceReactivePubSubCommands(connection);
 	}
 

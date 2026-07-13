@@ -60,7 +60,7 @@ class LettuceReactiveSubscriptionUnitTests {
 
 	@BeforeEach
 	void before() {
-		when(connectionMock.reactive()).thenReturn(commandsMock);
+		when(connectionMock.commands(RedisPubSubReactiveCommands.factory())).thenReturn(commandsMock);
 		subscription = new LettuceReactiveSubscription(mock(SubscriptionListener.class), connectionMock, pubSubMock,
 				e -> new RedisSystemException(e.getMessage(), e));
 	}

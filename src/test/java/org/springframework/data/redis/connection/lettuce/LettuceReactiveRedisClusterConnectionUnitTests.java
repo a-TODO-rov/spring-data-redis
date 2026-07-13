@@ -68,7 +68,7 @@ public class LettuceReactiveRedisClusterConnectionUnitTests {
 		when(connectionProvider.getConnectionAsync(any())).thenReturn(CompletableFuture.completedFuture(sharedConnection));
 		when(sharedConnection.getConnectionAsync(anyString(), anyInt()))
 				.thenReturn(CompletableFuture.completedFuture(nodeConnection));
-		when(nodeConnection.reactive()).thenReturn(reactiveNodeCommands);
+		when(nodeConnection.commands(RedisReactiveCommands.factory())).thenReturn(reactiveNodeCommands);
 	}
 
 	@Test // DATAREDIS-659, DATAREDIS-708

@@ -64,7 +64,7 @@ class LettuceReactiveRedisConnectionUnitTests {
 	void before() {
 		when(connectionProvider.getConnectionAsync(any())).thenReturn(CompletableFuture.completedFuture(sharedConnection));
 		when(connectionProvider.releaseAsync(any())).thenReturn(CompletableFuture.completedFuture(null));
-		when(sharedConnection.reactive()).thenReturn(reactiveCommands);
+		when(sharedConnection.commands(RedisReactiveCommands.factory())).thenReturn(reactiveCommands);
 	}
 
 	@Test // DATAREDIS-720
