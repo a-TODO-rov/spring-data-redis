@@ -495,14 +495,14 @@ public class GenericJackson2JsonRedisSerializer implements RedisSerializer<Objec
 		}
 
 		/**
-		 * Configure a property name to that represents the type hint.
+		 * Configure a property name that represents the type hint.
 		 *
 		 * @param typeHintPropertyName {@link String name} of the JSON property holding type information.
 		 * @return this {@link GenericJackson2JsonRedisSerializer.GenericJackson2JsonRedisSerializerBuilder}.
 		 */
 		public GenericJackson2JsonRedisSerializerBuilder typeHintPropertyName(String typeHintPropertyName) {
 
-			Assert.hasText(typeHintPropertyName, "Type hint property name must bot be null or empty");
+			Assert.hasText(typeHintPropertyName, "Type hint property name must not be null or empty");
 
 			this.typeHintPropertyName = typeHintPropertyName;
 			return this;

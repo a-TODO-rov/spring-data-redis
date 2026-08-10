@@ -38,12 +38,13 @@ import org.springframework.util.Assert;
  * @author Mark Paluch
  * @author dengliming
  * @author Lee Jaeheon
+ * @author JaeGeun Lee
  */
 @NullUnmarked
 public interface ListOperations<K, V> {
 
 	/**
-	 * Get elements between {@code begin} and {@code end} from list at {@code key}.
+	 * Get elements between {@code start} and {@code end} from list at {@code key}.
 	 *
 	 * @param key must not be {@literal null}.
 	 * @param start
@@ -394,7 +395,7 @@ public interface ListOperations<K, V> {
 	V index(@NonNull K key, long index);
 
 	/**
-	 * Returns the index of the first occurrence of the specified value in the list at at {@code key}. <br />
+	 * Returns the index of the first occurrence of the specified value in the list at {@code key}. <br />
 	 * Requires Redis 6.0.6 or newer.
 	 *
 	 * @param key must not be {@literal null}.
@@ -406,7 +407,7 @@ public interface ListOperations<K, V> {
 	Long indexOf(@NonNull K key, V value);
 
 	/**
-	 * Returns the index of the last occurrence of the specified value in the list at at {@code key}. <br />
+	 * Returns the index of the last occurrence of the specified value in the list at {@code key}. <br />
 	 * Requires Redis 6.0.6 or newer.
 	 *
 	 * @param key must not be {@literal null}.

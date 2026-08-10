@@ -55,6 +55,7 @@ import org.springframework.util.Assert;
  * @author Shyngys Sapraliyev
  * @author John Blum
  * @author Tihomir Mateev
+ * @author Tiefang Hu
  * @since 2.0
  */
 @NullUnmarked
@@ -199,7 +200,7 @@ class JedisZSetCommands implements RedisZSetCommands {
 
 		Assert.notNull(key, "Key must not be null");
 		Assert.notNull(range, "Range for ZRANGEBYSCOREWITHSCORES must not be null");
-		Assert.notNull(limit, "Limit must not be null Use Limit.unlimited() instead");
+		Assert.notNull(limit, "Limit must not be null. Use Limit.unlimited() instead");
 
 		byte[] min = JedisConverters.boundaryToBytesForZRange(range.getLowerBound(),
 				JedisConverters.NEGATIVE_INFINITY_BYTES);
@@ -242,7 +243,7 @@ class JedisZSetCommands implements RedisZSetCommands {
 
 		Assert.notNull(key, "Key must not be null");
 		Assert.notNull(range, "Range for ZREVRANGEBYSCORE must not be null");
-		Assert.notNull(limit, "Limit must not be null Use Limit.unlimited() instead");
+		Assert.notNull(limit, "Limit must not be null. Use Limit.unlimited() instead");
 
 		byte[] min = JedisConverters.boundaryToBytesForZRange(range.getLowerBound(),
 				JedisConverters.NEGATIVE_INFINITY_BYTES);
@@ -265,7 +266,7 @@ class JedisZSetCommands implements RedisZSetCommands {
 
 		Assert.notNull(key, "Key must not be null");
 		Assert.notNull(range, "Range for ZREVRANGEBYSCOREWITHSCORES must not be null");
-		Assert.notNull(limit, "Limit must not be null Use Limit.unlimited() instead");
+		Assert.notNull(limit, "Limit must not be null. Use Limit.unlimited() instead");
 
 		byte[] min = JedisConverters.boundaryToBytesForZRange(range.getLowerBound(),
 				JedisConverters.NEGATIVE_INFINITY_BYTES);
@@ -595,8 +596,9 @@ class JedisZSetCommands implements RedisZSetCommands {
 			protected ScanIteration<Tuple> doScan(byte @NonNull [] key, @NonNull CursorId cursorId,
 					@NonNull ScanOptions options) {
 
-				if (connection.isQueueing() || connection.isPipelined()) {
-					throw new InvalidDataAccessApiUsageException("'ZSCAN' cannot be called in pipeline / transaction mode");
+				if (connection.isQueueing() || connection.isPipelined() || connection.isWatchOnly()) {
+					throw new InvalidDataAccessApiUsageException(
+							"'ZSCAN' cannot be called in pipeline / transaction mode or while watching keys");
 				}
 
 				ScanParams params = JedisConverters.toScanParams(options);
@@ -647,7 +649,7 @@ class JedisZSetCommands implements RedisZSetCommands {
 
 		Assert.notNull(key, "Key must not be null");
 		Assert.notNull(range, "Range for ZRANGEBYSCORE must not be null");
-		Assert.notNull(limit, "Limit must not be null Use Limit.unlimited() instead");
+		Assert.notNull(limit, "Limit must not be null. Use Limit.unlimited() instead");
 
 		byte[] min = JedisConverters.boundaryToBytesForZRange(range.getLowerBound(),
 				JedisConverters.NEGATIVE_INFINITY_BYTES);
@@ -670,7 +672,7 @@ class JedisZSetCommands implements RedisZSetCommands {
 
 		Assert.notNull(key, "Key must not be null");
 		Assert.notNull(range, "Range for ZRANGEBYLEX must not be null");
-		Assert.notNull(limit, "Limit must not be null Use Limit.unlimited() instead");
+		Assert.notNull(limit, "Limit must not be null. Use Limit.unlimited() instead");
 
 		byte[] min = JedisConverters.boundaryToBytesForZRangeByLex(range.getLowerBound(), JedisConverters.MINUS_BYTES);
 		byte[] max = JedisConverters.boundaryToBytesForZRangeByLex(range.getUpperBound(), JedisConverters.PLUS_BYTES);
@@ -690,7 +692,7 @@ class JedisZSetCommands implements RedisZSetCommands {
 
 		Assert.notNull(key, "Key must not be null");
 		Assert.notNull(range, "Range for ZREVRANGEBYLEX must not be null");
-		Assert.notNull(limit, "Limit must not be null Use Limit.unlimited() instead.");
+		Assert.notNull(limit, "Limit must not be null. Use Limit.unlimited() instead");
 
 		byte[] min = JedisConverters.boundaryToBytesForZRangeByLex(range.getLowerBound(), JedisConverters.MINUS_BYTES);
 		byte[] max = JedisConverters.boundaryToBytesForZRangeByLex(range.getUpperBound(), JedisConverters.PLUS_BYTES);
@@ -725,7 +727,7 @@ class JedisZSetCommands implements RedisZSetCommands {
 		Assert.notNull(dstKey, "Destination key must not be null");
 		Assert.notNull(srcKey, "Source key must not be null");
 		Assert.notNull(range, "Range must not be null");
-		Assert.notNull(limit, "Limit must not be null. Use Limit.unlimited() instead.");
+		Assert.notNull(limit, "Limit must not be null. Use Limit.unlimited() instead");
 
 		byte[] min = JedisConverters.boundaryToBytesForZRangeByLex(range.getLowerBound(), JedisConverters.MINUS_BYTES);
 		byte[] max = JedisConverters.boundaryToBytesForZRangeByLex(range.getUpperBound(), JedisConverters.PLUS_BYTES);
@@ -757,7 +759,7 @@ class JedisZSetCommands implements RedisZSetCommands {
 		Assert.notNull(dstKey, "Destination key must not be null");
 		Assert.notNull(srcKey, "Source key must not be null");
 		Assert.notNull(range, "Range must not be null");
-		Assert.notNull(limit, "Limit must not be null. Use Limit.unlimited() instead.");
+		Assert.notNull(limit, "Limit must not be null. Use Limit.unlimited() instead");
 
 		byte[] min = JedisConverters.boundaryToBytesForZRange(range.getLowerBound(),
 				JedisConverters.NEGATIVE_INFINITY_BYTES);

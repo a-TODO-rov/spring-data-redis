@@ -29,12 +29,13 @@ import org.springframework.util.Assert;
  *
  * @author Costin Leau
  * @author Mark Paluch
+ * @author JaeGeun Lee
  */
 @NullUnmarked
 public interface BoundListOperations<K, V> extends BoundKeyOperations<K> {
 
 	/**
-	 * Get elements between {@code begin} and {@code end} from list at the bound key.
+	 * Get elements between {@code start} and {@code end} from list at the bound key.
 	 *
 	 * @param start
 	 * @param end
@@ -229,7 +230,7 @@ public interface BoundListOperations<K, V> extends BoundKeyOperations<K> {
 	V index(long index);
 
 	/**
-	 * Returns the index of the first occurrence of the specified value in the list at at {@code key}. <br />
+	 * Returns the index of the first occurrence of the specified value in the list at the bound key. <br />
 	 * Requires Redis 6.0.6 or newer.
 	 *
 	 * @param value must not be {@literal null}.
@@ -240,7 +241,7 @@ public interface BoundListOperations<K, V> extends BoundKeyOperations<K> {
 	Long indexOf(V value);
 
 	/**
-	 * Returns the index of the last occurrence of the specified value in the list at at {@code key}. <br />
+	 * Returns the index of the last occurrence of the specified value in the list at the bound key. <br />
 	 * Requires Redis 6.0.6 or newer.
 	 *
 	 * @param value must not be {@literal null}.

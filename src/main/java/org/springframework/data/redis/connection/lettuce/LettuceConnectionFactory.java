@@ -425,7 +425,7 @@ public class LettuceConnectionFactory implements RedisConnectionFactory, Reactiv
 	 */
 	public void setPipeliningFlushPolicy(PipeliningFlushPolicy pipeliningFlushPolicy) {
 
-		Assert.notNull(pipeliningFlushPolicy, "PipeliningFlushingPolicy must not be null");
+		Assert.notNull(pipeliningFlushPolicy, "PipeliningFlushPolicy must not be null");
 
 		this.pipeliningFlushPolicy = pipeliningFlushPolicy;
 	}
@@ -1602,7 +1602,7 @@ public class LettuceConnectionFactory implements RedisConnectionFactory, Reactiv
 		}
 
 		/**
-		 * Null-safe operation to evaluate whether the given {@link StatefulConnection connetion} is
+		 * Null-safe operation to evaluate whether the given {@link StatefulConnection connection} is
 		 * {@link StatefulConnection#isOpen() open}.
 		 *
 		 * @param connection {@link StatefulConnection} to evaluate.

@@ -62,6 +62,7 @@ import org.springframework.util.ObjectUtils;
  * @author ihaohong
  * @author Yordan Tsintsov
  * @author Tihomir Mateev
+ * @author Tiefang Hu
  * @since 2.0
  */
 @NullUnmarked
@@ -119,8 +120,8 @@ class JedisKeyCommands implements RedisKeyCommands {
 	@Override
 	public Boolean copy(byte @NonNull [] sourceKey, byte @NonNull [] targetKey, boolean replace) {
 
-		Assert.notNull(sourceKey, "source key must not be null");
-		Assert.notNull(targetKey, "target key must not be null");
+		Assert.notNull(sourceKey, "Source key must not be null");
+		Assert.notNull(targetKey, "Target key must not be null");
 
 		return connection.invoke().just(KeyBinaryCommands::copy, KeyPipelineBinaryCommands::copy, sourceKey, targetKey,
 				replace);
@@ -186,8 +187,9 @@ class JedisKeyCommands implements RedisKeyCommands {
 			@Override
 			protected ScanIteration<byte[]> doScan(CursorId cursorId, ScanOptions options) {
 
-				if (isQueueing() || isPipelined()) {
-					throw new InvalidDataAccessApiUsageException("'SCAN' cannot be called in pipeline / transaction mode");
+				if (isQueueing() || isPipelined() || isWatchOnly()) {
+					throw new InvalidDataAccessApiUsageException(
+							"'SCAN' cannot be called in pipeline / transaction mode or while watching keys");
 				}
 
 				ScanParams params = JedisConverters.toScanParams(options);
@@ -453,6 +455,10 @@ class JedisKeyCommands implements RedisKeyCommands {
 
 	private boolean isQueueing() {
 		return connection.isQueueing();
+	}
+
+	private boolean isWatchOnly() {
+		return connection.isWatchOnly();
 	}
 
 }

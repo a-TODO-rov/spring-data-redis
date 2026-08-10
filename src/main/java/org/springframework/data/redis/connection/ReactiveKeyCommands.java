@@ -90,7 +90,7 @@ public interface ReactiveKeyCommands {
 		 */
 		public CopyCommand to(ByteBuffer targetKey) {
 
-			Assert.notNull(targetKey, "Key must not be null");
+			Assert.notNull(targetKey, "Target key must not be null");
 
 			return new CopyCommand(getKey(), targetKey, isReplace(), database);
 		}
@@ -149,7 +149,7 @@ public interface ReactiveKeyCommands {
 	default Mono<Boolean> copy(ByteBuffer sourceKey, ByteBuffer targetKey, boolean replace) {
 
 		Assert.notNull(sourceKey, "Source key must not be null");
-		Assert.notNull(targetKey, "Targetk ey must not be null");
+		Assert.notNull(targetKey, "Target key must not be null");
 
 		return copy(Mono.just(CopyCommand.key(sourceKey).to(targetKey).replace(replace))).next()
 				.map(BooleanResponse::getOutput);
@@ -1046,9 +1046,10 @@ public interface ReactiveKeyCommands {
 	}
 
 	/**
-	 * Move given {@code key} to database with {@code index}.
+	 * Move given {@code key} to database with {@code database}.
 	 *
 	 * @param key must not be {@literal null}.
+	 * @param database
 	 * @return
 	 * @see <a href="https://redis.io/commands/move">Redis Documentation: MOVE</a>
 	 */
