@@ -15,6 +15,7 @@
  */
 package org.springframework.data.redis.test.extension;
 
+import io.lettuce.core.Subscription;
 import io.lettuce.core.event.Event;
 import io.lettuce.core.event.EventBus;
 import io.lettuce.core.resource.ClientResources;
@@ -24,6 +25,7 @@ import reactor.core.publisher.Flux;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import org.springframework.core.Ordered;
 
@@ -47,9 +49,10 @@ public class LettuceTestClientResources {
 	private static ClientResources newClientResources() {
 
 		return DefaultClientResources.builder().ioThreadPoolSize(4).computationThreadPoolSize(4).eventBus(new EventBus() {
+
 			@Override
-			public Flux<Event> get() {
-				return Flux.empty();
+			public Subscription subscribe(Consumer<Event> listener) {
+				return null;
 			}
 
 			@Override
