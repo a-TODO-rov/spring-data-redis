@@ -63,7 +63,7 @@ class LettuceReactiveSubscription implements ReactiveSubscription {
 		this.listener = new LettuceByteBufferPubSubListenerWrapper(
 				new LettuceMessageListener((messages, pattern) -> {}, subscriptionListener));
 		this.connection = connection;
-		this.reactive = connection.commands(RedisPubSubReactiveCommands.factory());
+		this.reactive = connection.reactive();
 		this.commands = commands;
 		connection.addListener(listener);
 

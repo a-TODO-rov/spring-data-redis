@@ -22,7 +22,6 @@ import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.SlotHash;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
-import io.lettuce.core.cluster.api.reactive.RedisAdvancedClusterReactiveCommands;
 import io.lettuce.core.cluster.api.reactive.RedisClusterReactiveCommands;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -345,7 +344,7 @@ class LettuceReactiveRedisClusterConnection extends LettuceReactiveRedisConnecti
 	}
 
 	protected Mono<RedisClusterReactiveCommands<ByteBuffer, ByteBuffer>> getCommands() {
-		return getConnection().map((connection) -> connection.commands(RedisAdvancedClusterReactiveCommands.factory()));
+		return getConnection().map(StatefulRedisClusterConnection::reactive);
 	}
 
 	@SuppressWarnings({ "unchecked" })
@@ -355,13 +354,13 @@ class LettuceReactiveRedisClusterConnection extends LettuceReactiveRedisConnecti
 			return getConnection().cast(StatefulRedisClusterConnection.class).flatMap(it -> {
 				StatefulRedisClusterConnection<ByteBuffer, ByteBuffer> connection = it;
 				return Mono.fromCompletionStage(connection.getConnectionAsync(node.getId()))
-						.map((connection1) -> connection1.commands(RedisReactiveCommands.factory()));
+						.map(StatefulRedisConnection::reactive);
 			});
 		}
 
 		return getConnection()
 				.flatMap(it -> Mono.fromCompletionStage(it.getConnectionAsync(node.getRequiredHost(), node.getRequiredPort()))
-						.map((connection) -> connection.commands(RedisReactiveCommands.factory())));
+						.map(StatefulRedisConnection::reactive));
 	}
 
 	/**

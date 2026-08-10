@@ -126,7 +126,7 @@ class LettuceReactivePubSubCommands implements ReactivePubSubCommands {
 
 	private <T> Mono<T> doWithPubSub(Function<RedisPubSubReactiveCommands<ByteBuffer, ByteBuffer>, Mono<T>> function) {
 
-		return connection.getPubSubConnection().flatMap(pubSubConnection -> function.apply(pubSubConnection.commands(RedisPubSubReactiveCommands.factory())))
+		return connection.getPubSubConnection().flatMap(pubSubConnection -> function.apply(pubSubConnection.reactive()))
 				.onErrorMap(connection.translateException());
 	}
 
