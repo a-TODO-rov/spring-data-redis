@@ -30,7 +30,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 
 import org.jspecify.annotations.NullUnmarked;
@@ -303,11 +303,13 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 	 */
 	static class AsyncConnect<T extends io.lettuce.core.api.StatefulConnection<?, ?>> {
 
-		private final AtomicReference<State> state = new AtomicReference<>(State.INITIAL);
+		static AtomicReferenceFieldUpdater<AsyncConnect, State> STATE = AtomicReferenceFieldUpdater
+				.newUpdater(AsyncConnect.class, State.class, "state");
 
 		private final Mono<T> connectionPublisher;
 		private final LettuceConnectionProvider connectionProvider;
 
+		private volatile State state = State.INITIAL;
 		private volatile @Nullable StatefulConnection<ByteBuffer, ByteBuffer> connection;
 
 		@SuppressWarnings("unchecked")
@@ -323,7 +325,7 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 
 			this.connectionPublisher = defer.doOnNext(it -> {
 
-				if (isClosing(state.get())) {
+				if (isClosing(STATE.get(this))) {
 					it.closeAsync();
 				} else {
 					connection = it;
@@ -332,7 +334,7 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 					.cache() //
 					.handle((connection, sink) -> {
 
-						if (isClosing(state.get())) {
+						if (isClosing(STATE.get(this))) {
 							sink.error(new IllegalStateException("Unable to connect; Connection is closed"));
 						} else {
 							sink.next((T) connection);
@@ -348,12 +350,12 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 		 */
 		Mono<T> getConnection() {
 
-			State state = this.state.get();
+			State state = STATE.get(this);
 			if (isClosing(state)) {
 				return Mono.error(new IllegalStateException("Unable to connect; Connection is closed"));
 			}
 
-			this.state.compareAndSet(State.INITIAL, State.CONNECTION_REQUESTED);
+			STATE.compareAndSet(this, State.INITIAL, State.CONNECTION_REQUESTED);
 
 			return connectionPublisher;
 		}
@@ -365,13 +367,13 @@ class LettuceReactiveRedisConnection implements ReactiveRedisConnection {
 
 			return Mono.defer(() -> {
 
-				if (this.state.compareAndSet(State.INITIAL, CLOSING)
-						|| this.state.compareAndSet(State.CONNECTION_REQUESTED, CLOSING)) {
+				if (STATE.compareAndSet(this, State.INITIAL, CLOSING)
+						|| STATE.compareAndSet(this, State.CONNECTION_REQUESTED, CLOSING)) {
 
 					StatefulConnection<ByteBuffer, ByteBuffer> connection = this.connection;
 					this.connection = null;
 
-					state.set(State.CLOSED);
+					STATE.set(this, State.CLOSED);
 					if (connection != null) {
 						return Mono.fromCompletionStage(connectionProvider.releaseAsync(connection));
 					}

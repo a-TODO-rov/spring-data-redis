@@ -73,7 +73,7 @@ import org.springframework.util.ObjectUtils;
 class DefaultRedisCacheWriter implements RedisCacheWriter {
 
 	private static final boolean REACTIVE_REDIS_CONNECTION_FACTORY_PRESENT = ClassUtils
-			.isPresent("reactor.core.publisher.Mono", DefaultRedisCacheWriter.class.getClassLoader());
+			.isPresent("org.springframework.data.redis.connection.ReactiveRedisConnectionFactory", null);
 
 	private final BatchStrategy batchStrategy;
 
